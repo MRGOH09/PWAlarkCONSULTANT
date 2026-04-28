@@ -141,7 +141,16 @@ class handler(BaseHTTPRequestHandler):
         if value in existing_names:
             return True, None
 
-        new_options = [{"name": opt.get("name")} for opt in options]
+        # 关键：必须保留 id 和 color，否则 Lark 会把旧选项视为新建，
+        # 导致已有记录引用的 option_id 失效、字段数据被清空。
+        new_options = []
+        for opt in options:
+            kept = {"name": opt.get("name")}
+            if opt.get("id"):
+                kept["id"] = opt.get("id")
+            if opt.get("color") is not None:
+                kept["color"] = opt.get("color")
+            new_options.append(kept)
         new_options.append({"name": value})
 
         url = (
