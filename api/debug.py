@@ -164,7 +164,7 @@ class handler(BaseHTTPRequestHandler):
     
     def get_raw_data(self, tenant_token, base_token, table_id):
         """获取原始数据用于调试"""
-        url = f"https://open.jp.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/records"
+        url = f"https://open.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/records"
         headers = {
             "Authorization": f"Bearer {tenant_token}",
             "Content-Type": "application/json; charset=utf-8"

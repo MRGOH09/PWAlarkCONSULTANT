@@ -66,7 +66,7 @@ class handler(BaseHTTPRequestHandler):
     
     def get_consultants_data(self, tenant_token, base_token, table_id):
         """获取顾问工作时间数据"""
-        url = f"https://open.jp.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/records"
+        url = f"https://open.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/records"
         headers = {
             "Authorization": f"Bearer {tenant_token}",
             "Content-Type": "application/json; charset=utf-8"
