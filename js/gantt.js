@@ -10,7 +10,7 @@ class GanttChart {
         this.lastUpdatedAt = null;
         this.currentView = 'schedule';
         this.filters = {
-            week: 'all',
+            week: '全部',
             day: 'all',
             campus: 'all',
             teacher: 'all'
@@ -268,7 +268,7 @@ class GanttChart {
         }
 
         const parts = [];
-        if (this.filters.week !== 'all') {
+        if (this.filters.week !== '全部') {
             parts.push(this.filters.week);
         }
         if (this.filters.teacher !== 'all') {
@@ -286,14 +286,14 @@ class GanttChart {
 
     clearFilters() {
         this.filters = {
-            week: 'all',
+            week: '全部',
             day: 'all',
             campus: 'all',
             teacher: 'all'
         };
 
         document.querySelectorAll('[data-week], [data-day], [data-campus]').forEach(btn => {
-            const isAll = btn.dataset.week === 'all' || btn.dataset.day === 'all' || btn.dataset.campus === 'all';
+            const isAll = btn.dataset.week === '全部' || btn.dataset.day === 'all' || btn.dataset.campus === 'all';
             btn.classList.toggle('active', isAll);
         });
 
@@ -304,7 +304,7 @@ class GanttChart {
     getFilteredData() {
         return this.consultants.filter(consultant => {
             // 周别筛选
-            if (this.filters.week !== 'all' && consultant.week !== this.filters.week) {
+            if (consultant.week !== this.filters.week) {
                 return false;
             }
 
@@ -786,13 +786,14 @@ class GanttChart {
 
     renderSummaryView() {
         const filteredData = this.getFilteredData();
+        const monthlyData = this.getMonthlyStatsData();
+        const monthlyStats = this.calculateMonthlyStats(monthlyData);
         
         // 统计数据
         const stats = {
             totalSchedules: filteredData.length,
             totalTeachers: new Set(filteredData.flatMap(c => c.teachers)).size,
             totalWeeklyHours: 0,
-            totalMonthlyHours: 0,
             campusStats: {},
             dayStats: {},
             teacherStats: {}
@@ -822,8 +823,6 @@ class GanttChart {
             });
         });
 
-        stats.totalMonthlyHours = stats.totalWeeklyHours * 4;
-
         let html = `
             <div class="summary-cards">
                 <div class="summary-card">
@@ -840,14 +839,14 @@ class GanttChart {
                 </div>
                 <div class="summary-card">
                     <h3>每月总小时</h3>
-                    <div class="number">${this.formatHours(stats.totalMonthlyHours)}</div>
+                    <div class="number">${this.formatHours(monthlyStats.totalMonthlyHours)}</div>
                 </div>
             </div>
 
             <div class="gantt-container">
                 <div class="gantt-header">
                     <span>👨‍🏫 老师工时统计</span>
-                    <span class="gantt-subtitle">月小时 = 周小时 x 4</span>
+                    <span class="gantt-subtitle">月小时 = 第1周 + 全部 x 3</span>
                 </div>
                 <div class="hours-table-wrap">
                     <table class="hours-table">
@@ -860,7 +859,7 @@ class GanttChart {
                             </tr>
                         </thead>
                         <tbody>
-                            ${this.renderTeacherHoursRows(stats.teacherStats)}
+                            ${this.renderTeacherHoursRows(stats.teacherStats, monthlyStats.teacherStats)}
                         </tbody>
                     </table>
                 </div>
@@ -902,11 +901,55 @@ class GanttChart {
         return html;
     }
 
-    renderTeacherHoursRows(teacherStats) {
-        const rows = Object.entries(teacherStats)
-            .sort(([, a], [, b]) => b.weeklyHours - a.weeklyHours)
-            .map(([teacher, stat]) => {
-                const monthlyHours = stat.weeklyHours * 4;
+    getMonthlyStatsData() {
+        return this.consultants.filter(consultant => {
+            if (this.filters.day !== 'all' && consultant.day !== this.filters.day) {
+                return false;
+            }
+
+            if (this.filters.campus !== 'all' && consultant.campus !== this.filters.campus) {
+                return false;
+            }
+
+            if (this.filters.teacher !== 'all' && !consultant.teachers.includes(this.filters.teacher)) {
+                return false;
+            }
+
+            return consultant.week === '全部' || consultant.week === '第1周';
+        });
+    }
+
+    calculateMonthlyStats(data) {
+        const stats = {
+            totalMonthlyHours: 0,
+            teacherStats: {}
+        };
+
+        data.forEach(consultant => {
+            const scheduleHours = this.calculateScheduleHours(consultant);
+            const multiplier = consultant.week === '第1周' ? 1 : 3;
+            const monthlyHours = scheduleHours * multiplier;
+            stats.totalMonthlyHours += monthlyHours * consultant.teachers.length;
+
+            consultant.teachers.forEach(teacher => {
+                stats.teacherStats[teacher] = (stats.teacherStats[teacher] || 0) + monthlyHours;
+            });
+        });
+
+        return stats;
+    }
+
+    renderTeacherHoursRows(teacherStats, monthlyTeacherStats = {}) {
+        const teachers = Array.from(new Set([
+            ...Object.keys(teacherStats),
+            ...Object.keys(monthlyTeacherStats)
+        ]));
+
+        const rows = teachers
+            .sort((a, b) => (monthlyTeacherStats[b] || 0) - (monthlyTeacherStats[a] || 0))
+            .map(teacher => {
+                const stat = teacherStats[teacher] || { schedules: 0, weeklyHours: 0 };
+                const monthlyHours = monthlyTeacherStats[teacher] || 0;
 
                 return `
                     <tr>
