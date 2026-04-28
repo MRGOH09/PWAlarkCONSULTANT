@@ -301,8 +301,22 @@
 
         .timeline-day {
             display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.18rem;
             align-items: center;
             font-size: 0.95rem;
+        }
+
+        .timeline-day-name {
+            font-weight: 800;
+        }
+
+        .timeline-day-total {
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 800;
+            white-space: nowrap;
         }
 
         .timeline-lane {
@@ -367,6 +381,14 @@
 
         .timeline-time {
             opacity: 0.86;
+        }
+
+        .timeline-duration {
+            font-size: 0.7rem;
+            font-weight: 800;
+            line-height: 1.1;
+            opacity: 0.95;
+            white-space: nowrap;
         }
 
         .timeline-count {
@@ -778,7 +800,6 @@
     <div class="nav-tabs">
         <div class="nav-tab" data-view="teacher">👨‍🏫 按老师查看</div>
         <div class="nav-tab active" data-view="schedule">🏫 按时间段查看</div>
-        <div class="nav-tab" data-view="summary">📊 统计总览</div>
     </div>
     
     <div class="controls">

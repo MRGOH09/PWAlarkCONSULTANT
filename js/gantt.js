@@ -337,9 +337,6 @@ class GanttChart {
             case 'schedule':
                 content.innerHTML = this.renderScheduleView();
                 break;
-            case 'summary':
-                content.innerHTML = this.renderSummaryView();
-                break;
         }
     }
 
@@ -447,10 +444,14 @@ class GanttChart {
         days.forEach(day => {
             const schedules = this.layoutDaySchedules(this.mergeScheduleSegments(schedulesByDay[day]));
             const laneCount = schedules.reduce((max, schedule) => Math.max(max, schedule.lane + 1), 1);
+            const dayTotalHours = this.calculateDayTotalHours(schedulesByDay[day]);
 
             html += `
                 <div class="timeline-row" style="--lanes: ${laneCount}">
-                    <div class="timeline-day">${day.replace('星期', '周')}</div>
+                    <div class="timeline-day">
+                        <div class="timeline-day-name">${day.replace('星期', '周')}</div>
+                        <div class="timeline-day-total">${this.formatHours(dayTotalHours)}</div>
+                    </div>
                     <div class="timeline-lane" style="--lanes: ${laneCount}">
             `;
 
@@ -462,6 +463,8 @@ class GanttChart {
                 const campusClass = this.getCampusClass(schedule.campus);
                 const teacherList = this.formatTeacherList(schedule.teachers);
                 const recordIds = schedule.records.map(record => record.recordId);
+                const duration = this.calculateScheduleHours(schedule);
+                const durationText = this.formatHours(duration);
                 html += `
                     <div class="timeline-block ${campusClass}"
                          data-segment-record-ids="${this.escapeAttribute(recordIds.join('|'))}"
@@ -471,6 +474,7 @@ class GanttChart {
                         <div class="timeline-campus">${schedule.campus}</div>
                         <div class="timeline-teachers">${teacherList}</div>
                         <div class="timeline-time">${schedule.checkin} - ${schedule.checkout}</div>
+                        <div class="timeline-duration">${durationText}</div>
                     </div>
                 `;
             });
@@ -784,185 +788,6 @@ class GanttChart {
         return this.escapeHtml(value);
     }
 
-    renderSummaryView() {
-        const filteredData = this.getFilteredData();
-        const monthlyData = this.getMonthlyStatsData();
-        const monthlyStats = this.calculateMonthlyStats(monthlyData);
-        
-        // 统计数据
-        const stats = {
-            totalSchedules: filteredData.length,
-            totalTeachers: new Set(filteredData.flatMap(c => c.teachers)).size,
-            totalWeeklyHours: 0,
-            campusStats: {},
-            dayStats: {},
-            teacherStats: {}
-        };
-
-        filteredData.forEach(consultant => {
-            const scheduleHours = this.calculateScheduleHours(consultant);
-            stats.totalWeeklyHours += scheduleHours * consultant.teachers.length;
-
-            // 校区统计
-            stats.campusStats[consultant.campus] = (stats.campusStats[consultant.campus] || 0) + 1;
-            
-            // 星期统计
-            stats.dayStats[consultant.day] = (stats.dayStats[consultant.day] || 0) + 1;
-            
-            // 老师统计
-            consultant.teachers.forEach(teacher => {
-                if (!stats.teacherStats[teacher]) {
-                    stats.teacherStats[teacher] = {
-                        schedules: 0,
-                        weeklyHours: 0
-                    };
-                }
-
-                stats.teacherStats[teacher].schedules += 1;
-                stats.teacherStats[teacher].weeklyHours += scheduleHours;
-            });
-        });
-
-        let html = `
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <h3>总排班数</h3>
-                    <div class="number">${stats.totalSchedules}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>参与老师</h3>
-                    <div class="number">${stats.totalTeachers}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>每周总小时</h3>
-                    <div class="number">${this.formatHours(stats.totalWeeklyHours)}</div>
-                </div>
-                <div class="summary-card">
-                    <h3>每月总小时</h3>
-                    <div class="number">${this.formatHours(monthlyStats.totalMonthlyHours)}</div>
-                </div>
-            </div>
-
-            <div class="gantt-container">
-                <div class="gantt-header">
-                    <span>👨‍🏫 老师工时统计</span>
-                    <span class="gantt-subtitle">月小时 = 第1周 + 全部 x 3</span>
-                </div>
-                <div class="hours-table-wrap">
-                    <table class="hours-table">
-                        <thead>
-                            <tr>
-                                <th>老师</th>
-                                <th>每周 Hours</th>
-                                <th>每月 Hours</th>
-                                <th>排班次数</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${this.renderTeacherHoursRows(stats.teacherStats, monthlyStats.teacherStats)}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="gantt-container">
-                <div class="gantt-header">📊 校区分布</div>
-                <div class="summary-cards">
-        `;
-
-        Object.entries(stats.campusStats).forEach(([campus, count]) => {
-            html += `
-                <div class="summary-card">
-                    <h3>${campus}</h3>
-                    <div class="number">${count}</div>
-                </div>
-            `;
-        });
-
-        html += `
-                </div>
-            </div>
-            
-            <div class="gantt-container">
-                <div class="gantt-header">📅 星期分布</div>
-                <div class="summary-cards">
-        `;
-
-        Object.entries(stats.dayStats).forEach(([day, count]) => {
-            html += `
-                <div class="summary-card">
-                    <h3>${day}</h3>
-                    <div class="number">${count}</div>
-                </div>
-            `;
-        });
-
-        html += '</div></div>';
-        return html;
-    }
-
-    getMonthlyStatsData() {
-        return this.consultants.filter(consultant => {
-            if (this.filters.day !== 'all' && consultant.day !== this.filters.day) {
-                return false;
-            }
-
-            if (this.filters.campus !== 'all' && consultant.campus !== this.filters.campus) {
-                return false;
-            }
-
-            if (this.filters.teacher !== 'all' && !consultant.teachers.includes(this.filters.teacher)) {
-                return false;
-            }
-
-            return consultant.week === '全部' || consultant.week === '第1周';
-        });
-    }
-
-    calculateMonthlyStats(data) {
-        const stats = {
-            totalMonthlyHours: 0,
-            teacherStats: {}
-        };
-
-        data.forEach(consultant => {
-            const scheduleHours = this.calculateScheduleHours(consultant);
-            const multiplier = consultant.week === '第1周' ? 1 : 3;
-            const monthlyHours = scheduleHours * multiplier;
-            stats.totalMonthlyHours += monthlyHours * consultant.teachers.length;
-
-            consultant.teachers.forEach(teacher => {
-                stats.teacherStats[teacher] = (stats.teacherStats[teacher] || 0) + monthlyHours;
-            });
-        });
-
-        return stats;
-    }
-
-    renderTeacherHoursRows(teacherStats, monthlyTeacherStats = {}) {
-        const teachers = Array.from(new Set([
-            ...Object.keys(teacherStats),
-            ...Object.keys(monthlyTeacherStats)
-        ]));
-
-        const rows = teachers
-            .sort((a, b) => (monthlyTeacherStats[b] || 0) - (monthlyTeacherStats[a] || 0))
-            .map(teacher => {
-                const stat = teacherStats[teacher] || { schedules: 0, weeklyHours: 0 };
-                const monthlyHours = monthlyTeacherStats[teacher] || 0;
-
-                return `
-                    <tr>
-                        <td>${teacher}</td>
-                        <td class="number-cell">${this.formatHours(stat.weeklyHours)}</td>
-                        <td class="number-cell">${this.formatHours(monthlyHours)}</td>
-                        <td class="muted-cell">${stat.schedules}</td>
-                    </tr>
-                `;
-            });
-
-        return rows.length ? rows.join('') : '<tr><td colspan="4" class="muted-cell">暂无老师工时数据</td></tr>';
-    }
 
     calculateScheduleHours(schedule) {
         const start = this.parseTimeToHours(schedule.checkin);
@@ -973,6 +798,28 @@ class GanttChart {
     formatHours(hours) {
         const rounded = Math.round(hours * 10) / 10;
         return Number.isInteger(rounded) ? `${rounded}h` : `${rounded.toFixed(1)}h`;
+    }
+
+    calculateDayTotalHours(schedules) {
+        if (!Array.isArray(schedules)) {
+            return 0;
+        }
+
+        let totalHours = 0;
+        schedules.forEach(schedule => {
+            const scheduleHours = this.calculateScheduleHours(schedule);
+            // 根据当前筛选条件，如果选择了特定老师，只计算该老师的工时
+            if (this.filters.teacher !== 'all') {
+                if (schedule.teachers.includes(this.filters.teacher)) {
+                    totalHours += scheduleHours;
+                }
+            } else {
+                // 如果没有选择特定老师，计算所有老师的工时
+                totalHours += scheduleHours * schedule.teachers.length;
+            }
+        });
+
+        return totalHours;
     }
 
     getTimeSlot(checkin, checkout) {
