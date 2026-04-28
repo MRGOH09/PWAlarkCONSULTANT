@@ -1036,10 +1036,12 @@ class GanttChart {
 
     getConflictRecordIds(schedules) {
         const conflictIds = new Set();
-        schedules.forEach(schedule => {
-            const conflicts = this.findScheduleConflicts(schedule, schedules);
+        const entries = this.expandTeacherScheduleEntries(schedules);
+
+        entries.forEach(entry => {
+            const conflicts = this.findEntryConflicts(entry, entries);
             if (conflicts.length > 0) {
-                conflictIds.add(schedule.recordId);
+                conflictIds.add(entry.recordId);
                 conflicts.forEach(conflict => conflictIds.add(conflict.recordId));
             }
         });
@@ -1047,31 +1049,47 @@ class GanttChart {
     }
 
     findScheduleConflicts(target, schedules = this.consultants) {
-        const targetTeachers = new Set(
-            this.normalizeTeachers(target.teachers).map(teacher => this.normalizeTeacherKey(teacher))
-        );
-        const targetStart = this.parseTimeToHours(target.checkin);
-        const targetEnd = this.parseTimeToHours(target.checkout);
+        const targetEntries = this.expandTeacherScheduleEntries([target]);
+        const scheduleEntries = this.expandTeacherScheduleEntries(schedules);
+        const conflictMap = new Map();
 
-        return schedules.filter(schedule => {
-            if (schedule.recordId === target.recordId) {
-                return false;
-            }
-            if (schedule.day !== target.day) {
-                return false;
-            }
-            if (!this.weeksOverlap(schedule.week || '全部', target.week || '全部')) {
-                return false;
-            }
-            const sharedTeachers = this.normalizeTeachers(schedule.teachers)
-                .filter(teacher => targetTeachers.has(this.normalizeTeacherKey(teacher)));
-            if (sharedTeachers.length === 0) {
-                return false;
-            }
+        targetEntries.forEach(targetEntry => {
+            this.findEntryConflicts(targetEntry, scheduleEntries).forEach(conflict => {
+                if (!conflictMap.has(conflict.recordId)) {
+                    conflictMap.set(conflict.recordId, conflict.schedule);
+                }
+            });
+        });
 
-            const scheduleStart = this.parseTimeToHours(schedule.checkin);
-            const scheduleEnd = this.parseTimeToHours(schedule.checkout);
-            return targetStart < scheduleEnd && scheduleStart < targetEnd;
+        return Array.from(conflictMap.values());
+    }
+
+    expandTeacherScheduleEntries(schedules) {
+        return schedules.flatMap(schedule => {
+            const teachers = this.normalizeTeachers(schedule.teachers);
+            return teachers.map(teacher => ({
+                schedule,
+                recordId: schedule.recordId,
+                teacher,
+                teacherKey: this.normalizeTeacherKey(teacher),
+                day: schedule.day,
+                week: schedule.week || '全部',
+                start: this.parseTimeToHours(schedule.checkin),
+                end: this.parseTimeToHours(schedule.checkout)
+            }));
+        }).filter(entry => entry.recordId && entry.teacherKey);
+    }
+
+    findEntryConflicts(targetEntry, entries) {
+        return entries.filter(entry => {
+            if (entry.recordId === targetEntry.recordId) {
+                return false;
+            }
+            return entry.teacherKey === targetEntry.teacherKey &&
+                entry.day === targetEntry.day &&
+                this.weeksOverlap(entry.week, targetEntry.week) &&
+                targetEntry.start < entry.end &&
+                entry.start < targetEntry.end;
         });
     }
 

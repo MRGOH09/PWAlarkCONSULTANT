@@ -1,5 +1,5 @@
 // Service Worker for PWA
-const CACHE_NAME = 'me-education-v5';
+const CACHE_NAME = 'me-education-v6';
 const urlsToCache = [
     '/js/gantt.js',
     '/manifest.json'
