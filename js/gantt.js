@@ -83,6 +83,8 @@ class GanttChart {
 
         document.getElementById('edit-close').addEventListener('click', () => this.closeEditModal());
         document.getElementById('edit-cancel').addEventListener('click', () => this.closeEditModal());
+        document.getElementById('teacher-picker').addEventListener('click', (e) => this.handleTeacherPick(e));
+        document.getElementById('teacher-picker').addEventListener('touchend', (e) => this.handleTeacherPick(e));
         document.getElementById('edit-modal').addEventListener('click', (e) => {
             const choice = e.target.closest('[data-picker-record-id]');
             if (choice) {
@@ -578,6 +580,7 @@ class GanttChart {
                 ${this.escapeHtml(schedule.teachers.join(', '))}
             </button>
         `).join('');
+        this.bindTeacherChoices();
         document.getElementById('teacher-picker').classList.add('open');
         document.getElementById('edit-checkin').value = first.checkin;
         document.getElementById('edit-checkout').value = first.checkout;
@@ -589,6 +592,25 @@ class GanttChart {
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
         this.updateSyncStatus('编辑中，已暂停自动刷新');
+    }
+
+    bindTeacherChoices() {
+        document.querySelectorAll('[data-picker-record-id]').forEach(button => {
+            const pick = (e) => this.handleTeacherPick(e);
+            button.onclick = pick;
+            button.ontouchend = pick;
+        });
+    }
+
+    handleTeacherPick(e) {
+        const choice = e.target.closest('[data-picker-record-id]');
+        if (!choice) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        this.openEditModal(choice.dataset.pickerRecordId);
     }
 
     openEditModal(recordId) {
@@ -899,5 +921,5 @@ class GanttChart {
 
 // 启动应用
 document.addEventListener('DOMContentLoaded', () => {
-    new GanttChart();
+    window.ganttChart = new GanttChart();
 });
