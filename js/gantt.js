@@ -375,8 +375,7 @@ class GanttChart {
         `;
 
         Object.keys(teacherSchedules).sort().forEach(teacher => {
-            const teacherTotalHours = this.calculateTeacherTotalHours(teacherSchedules[teacher]);
-            html += `<tr><td class="teacher-name">${teacher}<br><small style="color: #64748b; font-weight: normal;">${this.formatHours(teacherTotalHours)}</small></td>`;
+            html += `<tr><td class="teacher-name">${teacher}</td>`;
             
             days.forEach(day => {
                 const daySchedules = teacherSchedules[teacher].filter(s => s.day === day);
@@ -464,7 +463,7 @@ class GanttChart {
 
             schedules.forEach(schedule => {
                 const campusClass = this.getCampusClass(schedule.campus);
-                const teacherList = this.formatTeacherList(schedule.teachers);
+                const teacherList = this.formatTeacherListWithDayHours(schedule.teachers, schedule.day, schedulesByDay[schedule.day]);
                 const recordIds = schedule.records.map(record => record.recordId);
                 const duration = this.calculateScheduleHours(schedule);
                 const timeWithDuration = this.formatTimeWithDuration(schedule.checkin, schedule.checkout, duration);
@@ -529,6 +528,23 @@ class GanttChart {
         }
 
         return `${teachers.slice(0, 3).join(', ')} +${teachers.length - 3}`;
+    }
+
+    formatTeacherListWithDayHours(teachers, day, daySchedules) {
+        if (!Array.isArray(teachers) || teachers.length === 0) {
+            return '';
+        }
+
+        const teachersWithHours = teachers.map(teacher => {
+            const teacherDayHours = this.calculateTeacherDayHoursInSchedules(teacher, daySchedules || []);
+            return `${teacher}(今日时长：${this.formatHours(teacherDayHours)})`;
+        });
+
+        if (teachersWithHours.length <= 2) {
+            return teachersWithHours.join(', ');
+        }
+
+        return `${teachersWithHours.slice(0, 2).join(', ')} +${teachersWithHours.length - 2}`;
     }
 
     layoutDaySchedules(schedules) {
@@ -862,6 +878,34 @@ class GanttChart {
         let totalHours = 0;
         teacherSchedules.forEach(schedule => {
             totalHours += this.calculateScheduleHours(schedule);
+        });
+
+        return totalHours;
+    }
+
+    calculateTeacherDayHours(daySchedules) {
+        if (!Array.isArray(daySchedules)) {
+            return 0;
+        }
+
+        let totalHours = 0;
+        daySchedules.forEach(schedule => {
+            totalHours += this.calculateScheduleHours(schedule);
+        });
+
+        return totalHours;
+    }
+
+    calculateTeacherDayHoursInSchedules(teacher, daySchedules) {
+        if (!Array.isArray(daySchedules) || !teacher) {
+            return 0;
+        }
+
+        let totalHours = 0;
+        daySchedules.forEach(schedule => {
+            if (schedule.teachers && schedule.teachers.includes(teacher)) {
+                totalHours += this.calculateScheduleHours(schedule);
+            }
         });
 
         return totalHours;
