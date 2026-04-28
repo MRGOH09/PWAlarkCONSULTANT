@@ -96,7 +96,7 @@ class handler(BaseHTTPRequestHandler):
         data = {"fields": fields}
 
         try:
-            response = requests.patch(url, headers=headers, json=data, timeout=15)
+            response = requests.put(url, headers=headers, json=data, timeout=15)
             response.raise_for_status()
             return response.json()
         except requests.HTTPError as e:
