@@ -355,12 +355,17 @@ class GanttChart {
         const stats = {
             totalSchedules: filteredData.length,
             totalTeachers: new Set(filteredData.flatMap(c => c.teachers)).size,
+            totalWeeklyHours: 0,
+            totalMonthlyHours: 0,
             campusStats: {},
             dayStats: {},
             teacherStats: {}
         };
 
         filteredData.forEach(consultant => {
+            const scheduleHours = this.calculateScheduleHours(consultant);
+            stats.totalWeeklyHours += scheduleHours * consultant.teachers.length;
+
             // 校区统计
             stats.campusStats[consultant.campus] = (stats.campusStats[consultant.campus] || 0) + 1;
             
@@ -369,9 +374,19 @@ class GanttChart {
             
             // 老师统计
             consultant.teachers.forEach(teacher => {
-                stats.teacherStats[teacher] = (stats.teacherStats[teacher] || 0) + 1;
+                if (!stats.teacherStats[teacher]) {
+                    stats.teacherStats[teacher] = {
+                        schedules: 0,
+                        weeklyHours: 0
+                    };
+                }
+
+                stats.teacherStats[teacher].schedules += 1;
+                stats.teacherStats[teacher].weeklyHours += scheduleHours;
             });
         });
+
+        stats.totalMonthlyHours = stats.totalWeeklyHours * 4;
 
         let html = `
             <div class="summary-cards">
@@ -382,6 +397,36 @@ class GanttChart {
                 <div class="summary-card">
                     <h3>参与老师</h3>
                     <div class="number">${stats.totalTeachers}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>每周总小时</h3>
+                    <div class="number">${this.formatHours(stats.totalWeeklyHours)}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>每月总小时</h3>
+                    <div class="number">${this.formatHours(stats.totalMonthlyHours)}</div>
+                </div>
+            </div>
+
+            <div class="gantt-container">
+                <div class="gantt-header">
+                    <span>👨‍🏫 老师工时统计</span>
+                    <span class="gantt-subtitle">月小时 = 周小时 x 4</span>
+                </div>
+                <div class="hours-table-wrap">
+                    <table class="hours-table">
+                        <thead>
+                            <tr>
+                                <th>老师</th>
+                                <th>每周 Hours</th>
+                                <th>每月 Hours</th>
+                                <th>排班次数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${this.renderTeacherHoursRows(stats.teacherStats)}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             
@@ -419,6 +464,36 @@ class GanttChart {
 
         html += '</div></div>';
         return html;
+    }
+
+    renderTeacherHoursRows(teacherStats) {
+        const rows = Object.entries(teacherStats)
+            .sort(([, a], [, b]) => b.weeklyHours - a.weeklyHours)
+            .map(([teacher, stat]) => {
+                const monthlyHours = stat.weeklyHours * 4;
+
+                return `
+                    <tr>
+                        <td>${teacher}</td>
+                        <td class="number-cell">${this.formatHours(stat.weeklyHours)}</td>
+                        <td class="number-cell">${this.formatHours(monthlyHours)}</td>
+                        <td class="muted-cell">${stat.schedules}</td>
+                    </tr>
+                `;
+            });
+
+        return rows.length ? rows.join('') : '<tr><td colspan="4" class="muted-cell">暂无老师工时数据</td></tr>';
+    }
+
+    calculateScheduleHours(schedule) {
+        const start = this.parseTimeToHours(schedule.checkin);
+        const end = this.parseTimeToHours(schedule.checkout);
+        return Math.max(end - start, 0);
+    }
+
+    formatHours(hours) {
+        const rounded = Math.round(hours * 10) / 10;
+        return Number.isInteger(rounded) ? `${rounded}h` : `${rounded.toFixed(1)}h`;
     }
 
     getTimeSlot(checkin, checkout) {
