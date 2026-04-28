@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ME Education - 甘特图时间表</title>
+    
+    <!-- PWA Meta -->
+    <meta name="theme-color" content="#00b96b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="/manifest.json">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #00b96b, #52c41a);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-tabs {
+            background: white;
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            overflow-x: auto;
+        }
+        
+        .nav-tab {
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab.active {
+            border-bottom-color: #00b96b;
+            background: #f0f9f4;
+            color: #00b96b;
+            font-weight: bold;
+        }
+        
+        .controls {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            align-items: center;
+        }
+        
+        .filter-label {
+            font-weight: bold;
+            color: #666;
+            margin-right: 0.5rem;
+        }
+        
+        .filter-btn {
+            padding: 0.3rem 0.8rem;
+            border: 1px solid #d9d9d9;
+            border-radius: 15px;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn.active {
+            background: #00b96b;
+            color: white;
+            border-color: #00b96b;
+        }
+        
+        .gantt-container {
+            background: white;
+            margin: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .gantt-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .gantt-content {
+            overflow-x: auto;
+        }
+        
+        .gantt-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+        
+        .gantt-table th,
+        .gantt-table td {
+            border: 1px solid #e0e0e0;
+            padding: 0.5rem;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .gantt-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .teacher-name {
+            background: #fff;
+            font-weight: bold;
+            color: #00b96b;
+            text-align: left;
+            min-width: 80px;
+        }
+        
+        .time-slot {
+            position: relative;
+            height: 40px;
+            min-width: 80px;
+        }
+        
+        .schedule-block {
+            background: linear-gradient(45deg, #00b96b, #52c41a);
+            color: white;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.8rem;
+            text-align: center;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .schedule-block:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,185,107,0.3);
+        }
+        
+        .schedule-block.pu { background: linear-gradient(45deg, #1890ff, #40a9ff); }
+        .schedule-block.hm { background: linear-gradient(45deg, #722ed1, #9254de); }
+        .schedule-block.subang { background: linear-gradient(45deg, #fa541c, #ff7a45); }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .summary-card h3 {
+            color: #00b96b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-card .number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                justify-content: center;
+            }
+            
+            .gantt-table th,
+            .gantt-table td {
+                padding: 0.3rem;
+                font-size: 0.8rem;
+            }
+            
+            .schedule-block {
+                font-size: 0.7rem;
+                padding: 1px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ME Education 甘特图时间表</h1>
+        <p>顾问工作时间可视化管理</p>
+        <div style="margin-top: 10px;">
+            <a href="/" style="color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 15px; margin-right: 10px;">🏠 首页</a>
+            <a href="/test.html" style="color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 15px;">🔧 测试</a>
+        </div>
+    </div>
+    
+    <div class="nav-tabs">
+        <div class="nav-tab active" data-view="teacher">👨‍🏫 按老师查看</div>
+        <div class="nav-tab" data-view="schedule">🏫 按时间段查看</div>
+        <div class="nav-tab" data-view="summary">📊 统计总览</div>
+    </div>
+    
+    <div class="controls">
+        <div class="filter-group">
+            <span class="filter-label">星期:</span>
+            <button class="filter-btn active" data-day="all">全部</button>
+            <button class="filter-btn" data-day="星期一">周一</button>
+            <button class="filter-btn" data-day="星期二">周二</button>
+            <button class="filter-btn" data-day="星期三">周三</button>
+            <button class="filter-btn" data-day="星期四">周四</button>
+            <button class="filter-btn" data-day="星期五">周五</button>
+            <button class="filter-btn" data-day="星期六">周六</button>
+            <button class="filter-btn" data-day="星期日">周日</button>
+        </div>
+        
+        <div class="filter-group">
+            <span class="filter-label">校区:</span>
+            <button class="filter-btn active" data-campus="all">全部</button>
+            <button class="filter-btn" data-campus="PU">PU</button>
+            <button class="filter-btn" data-campus="HM">HM</button>
+            <button class="filter-btn" data-campus="SUBANG">SUBANG</button>
+        </div>
+        
+        <div class="filter-group" id="teacher-filter" style="display:none;">
+            <span class="filter-label">老师:</span>
+            <button class="filter-btn active" data-teacher="all">全部</button>
+        </div>
+    </div>
+    
+    <div id="content">
+        <div class="loading">正在加载甘特图数据...</div>
+    </div>
+    
+    <script src="/js/gantt.js"></script>
+</body>
+</html>
