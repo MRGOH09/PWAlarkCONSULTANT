@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lark API 测试诊断</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .test-header {
+            color: #00b96b;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #00b96b;
+            padding-bottom: 5px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.loading { background: #fff3cd; color: #856404; }
+        
+        .btn {
+            background: #00b96b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover { background: #009656; }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            border-left: 4px solid #00b96b;
+        }
+        
+        .error-pre {
+            background: #fff5f5;
+            border-left-color: #f56565;
+        }
+        
+        .step-indicator {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Lark API 诊断测试中心</h1>
+    
+    <div class="test-section">
+        <div class="test-header">📊 当前配置状态</div>
+        <div id="config-status">
+            <span class="status loading">检查中...</span>
+        </div>
+        <button class="btn" onclick="checkConfig()">检查配置</button>
+        <pre id="config-result">点击按钮开始检查...</pre>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-header">🔑 Token 获取测试</div>
+        <div id="token-status">
+            <span class="status loading">未测试</span>
+        </div>
+        <button class="btn" onclick="testToken()">测试 Token 获取</button>
+        <pre id="token-result">点击按钮测试 Token...</pre>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-header">📋 表格权限测试</div>
+        <div id="permission-status">
+            <span class="status loading">未测试</span>
+        </div>
+        <button class="btn" onclick="testPermission()">测试表格权限</button>
+        <pre id="permission-result">点击按钮测试权限...</pre>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-header">📨 原始数据测试</div>
+        <div id="data-status">
+            <span class="status loading">未测试</span>
+        </div>
+        <button class="btn" onclick="testRawData()">获取原始数据</button>
+        <pre id="data-result">点击按钮获取数据...</pre>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-header">🔄 完整流程测试</div>
+        <div id="full-status">
+            <span class="status loading">未测试</span>
+        </div>
+        <button class="btn" onclick="testFullFlow()">完整流程测试</button>
+        <pre id="full-result">点击按钮进行完整测试...</pre>
+    </div>
+    
+    <div class="step-indicator">
+        <strong>💡 诊断说明：</strong><br>
+        1. <strong>配置检查</strong>：验证所有环境变量是否正确设置<br>
+        2. <strong>Token 测试</strong>：检查是否能获取访问令牌<br>
+        3. <strong>权限测试</strong>：测试应用对表格的访问权限<br>
+        4. <strong>数据测试</strong>：尝试获取表格原始数据<br>
+        5. <strong>完整测试</strong>：模拟完整的数据获取和处理流程
+    </div>
+
+    <script>
+        async function checkConfig() {
+            updateStatus('config', 'loading', '检查中...');
+            try {
+                const response = await fetch('/api/debug?test=config');
+                const data = await response.json();
+                
+                if (data.app_id && data.base_token && data.table_id) {
+                    updateStatus('config', 'success', '配置完整');
+                } else {
+                    updateStatus('config', 'error', '配置缺失');
+                }
+                
+                document.getElementById('config-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                updateStatus('config', 'error', '检查失败');
+                document.getElementById('config-result').textContent = `错误: ${error.message}`;
+            }
+        }
+        
+        async function testToken() {
+            updateStatus('token', 'loading', '测试中...');
+            try {
+                const response = await fetch('/api/debug?test=token');
+                const data = await response.json();
+                
+                if (data.tenant_token === '获取成功') {
+                    updateStatus('token', 'success', 'Token 获取成功');
+                } else {
+                    updateStatus('token', 'error', 'Token 获取失败');
+                }
+                
+                document.getElementById('token-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                updateStatus('token', 'error', '测试失败');
+                document.getElementById('token-result').textContent = `错误: ${error.message}`;
+            }
+        }
+        
+        async function testPermission() {
+            updateStatus('permission', 'loading', '测试中...');
+            try {
+                const response = await fetch('/api/debug?test=permission');
+                const data = await response.json();
+                
+                if (data.raw_data && data.raw_data.code === 0) {
+                    updateStatus('permission', 'success', '权限正常');
+                } else if (data.raw_data && data.raw_data.code === 1254302) {
+                    updateStatus('permission', 'error', '权限不足');
+                } else {
+                    updateStatus('permission', 'error', '未知错误');
+                }
+                
+                document.getElementById('permission-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                updateStatus('permission', 'error', '测试失败');
+                document.getElementById('permission-result').textContent = `错误: ${error.message}`;
+            }
+        }
+        
+        async function testRawData() {
+            updateStatus('data', 'loading', '获取中...');
+            try {
+                const response = await fetch('/api/debug?test=raw');
+                const data = await response.json();
+                
+                if (data.raw_data && data.raw_data.data && data.raw_data.data.items) {
+                    updateStatus('data', 'success', `获取到 ${data.raw_data.data.items.length} 条记录`);
+                } else {
+                    updateStatus('data', 'error', '数据获取失败');
+                }
+                
+                document.getElementById('data-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                updateStatus('data', 'error', '获取失败');
+                document.getElementById('data-result').textContent = `错误: ${error.message}`;
+            }
+        }
+        
+        async function testFullFlow() {
+            updateStatus('full', 'loading', '测试中...');
+            try {
+                const response = await fetch('/api/consultants');
+                const data = await response.json();
+                
+                if (Array.isArray(data) && data.length > 0) {
+                    updateStatus('full', 'success', `处理成功，得到 ${data.length} 条记录`);
+                } else if (Array.isArray(data) && data.length === 0) {
+                    updateStatus('full', 'error', '数据为空');
+                } else {
+                    updateStatus('full', 'error', '处理失败');
+                }
+                
+                document.getElementById('full-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                updateStatus('full', 'error', '测试失败');
+                document.getElementById('full-result').textContent = `错误: ${error.message}`;
+            }
+        }
+        
+        function updateStatus(section, type, text) {
+            const statusEl = document.getElementById(`${section}-status`);
+            statusEl.innerHTML = `<span class="status ${type}">${text}</span>`;
+        }
+        
+        // 页面加载时自动检查配置
+        window.addEventListener('load', () => {
+            checkConfig();
+        });
+    </script>
+</body>
+</html>
