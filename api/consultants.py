@@ -90,53 +90,67 @@ class handler(BaseHTTPRequestHandler):
         """处理和清洗 Lark 返回的原始数据"""
         processed_consultants = []
         
-        for item in raw_data:
+        print(f"原始数据条数: {len(raw_data)}")  # 调试信息
+        
+        for i, item in enumerate(raw_data):
             fields = item.get("fields", {})
+            print(f"记录 {i+1} 字段: {list(fields.keys())}")  # 调试信息
             
             try:
-                # 提取字段数据（根据您的表格结构调整）
-                day = self.extract_text_field(fields, "星期")
-                teachers = self.extract_multiple_select_field(fields, "老师") 
-                checkin = self.extract_text_field(fields, "进")
-                checkout = self.extract_text_field(fields, "出")
-                campus = self.extract_text_field(fields, "校区")
+                # 直接按字段顺序提取数据
+                field_values = list(fields.values())
                 
-                # 只处理有效数据
-                if day and teachers and checkin and checkout and campus:
-                    consultant = {
-                        "day": day,
-                        "teachers": teachers,
-                        "checkin": checkin,
-                        "checkout": checkout,
-                        "campus": campus
-                    }
-                    processed_consultants.append(consultant)
+                if len(field_values) >= 5:
+                    # 假设字段顺序为：星期、老师、进、出、校区
+                    day = self.extract_value(field_values[0])
+                    teachers = self.extract_teachers(field_values[1])
+                    checkin = self.extract_value(field_values[2]) 
+                    checkout = self.extract_value(field_values[3])
+                    campus = self.extract_value(field_values[4])
                     
+                    print(f"提取的数据: day={day}, teachers={teachers}, checkin={checkin}, checkout={checkout}, campus={campus}")
+                    
+                    # 只处理有效数据
+                    if day and teachers and checkin and checkout and campus:
+                        consultant = {
+                            "day": day,
+                            "teachers": teachers,
+                            "checkin": checkin,
+                            "checkout": checkout,
+                            "campus": campus
+                        }
+                        processed_consultants.append(consultant)
+                        
             except Exception as e:
                 print(f"处理单条记录时出错: {str(e)}")
                 continue
         
+        print(f"处理完成，有效记录数: {len(processed_consultants)}")
         return processed_consultants
     
-    def extract_text_field(self, fields, field_name):
-        """提取文本字段"""
-        for field_id, field_data in fields.items():
-            if isinstance(field_data, dict) and "text" in field_data:
+    def extract_value(self, field_data):
+        """提取字段值"""
+        if isinstance(field_data, dict):
+            if "text" in field_data:
                 return field_data["text"]
+            elif "value" in field_data:
+                return str(field_data["value"])
+        elif isinstance(field_data, (str, int, float)):
+            return str(field_data)
         return ""
     
-    def extract_multiple_select_field(self, fields, field_name):
-        """提取多选字段（老师名字）"""
-        for field_id, field_data in fields.items():
-            if isinstance(field_data, list):
-                # 如果是多个人名的数组
-                names = []
-                for item in field_data:
-                    if isinstance(item, dict) and "text" in item:
-                        names.append(item["text"])
-                if names:
-                    return names
-            elif isinstance(field_data, dict) and "text" in field_data:
-                # 单个人名
-                return [field_data["text"]]
-        return []
+    def extract_teachers(self, field_data):
+        """提取老师字段（可能是多选）"""
+        if isinstance(field_data, list):
+            names = []
+            for item in field_data:
+                if isinstance(item, dict) and "text" in item:
+                    names.append(item["text"])
+                elif isinstance(item, str):
+                    names.append(item)
+            return names if names else ["未知"]
+        elif isinstance(field_data, dict) and "text" in field_data:
+            return [field_data["text"]]
+        elif isinstance(field_data, str):
+            return [field_data]
+        return ["未知"]
