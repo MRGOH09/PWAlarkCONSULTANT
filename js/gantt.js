@@ -845,27 +845,6 @@ class GanttChart {
         return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     }
 
-    calculateDayTotalHours(schedules) {
-        if (!Array.isArray(schedules)) {
-            return 0;
-        }
-
-        let totalHours = 0;
-        schedules.forEach(schedule => {
-            const scheduleHours = this.calculateScheduleHours(schedule);
-            // 根据当前筛选条件，如果选择了特定老师，只计算该老师的工时
-            if (this.filters.teacher !== 'all') {
-                if (schedule.teachers.includes(this.filters.teacher)) {
-                    totalHours += scheduleHours;
-                }
-            } else {
-                // 如果没有选择特定老师，计算所有老师的工时
-                totalHours += scheduleHours * schedule.teachers.length;
-            }
-        });
-
-        return totalHours;
-    }
 
     calculateTeacherTotalHours(teacherSchedules) {
         if (!Array.isArray(teacherSchedules)) {
