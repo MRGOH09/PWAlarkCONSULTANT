@@ -239,6 +239,13 @@
             transform: scale(1.05);
             box-shadow: 0 2px 8px rgba(0,185,107,0.3);
         }
+
+        .schedule-block.conflict,
+        .timeline-block.conflict {
+            outline: 3px solid #ef4444;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.18), 0 8px 18px rgba(15, 23, 42, 0.16);
+        }
         
         .schedule-block.pu { background: linear-gradient(45deg, #1890ff, #40a9ff); }
         .schedule-block.hm { background: linear-gradient(45deg, #722ed1, #9254de); }
@@ -391,6 +398,18 @@
             font-size: 0.72rem;
             font-weight: 800;
             text-align: center;
+        }
+
+        .timeline-conflict-mark {
+            position: absolute;
+            right: 0.45rem;
+            bottom: 0.38rem;
+            padding: 0.08rem 0.32rem;
+            border-radius: 999px;
+            background: #ef4444;
+            color: #ffffff;
+            font-size: 0.62rem;
+            font-weight: 800;
         }
         
         .loading {
@@ -616,6 +635,17 @@
             display: flex;
             justify-content: flex-end;
             gap: 0.6rem;
+        }
+
+        .edit-actions .danger {
+            margin-right: auto;
+            border-color: #dc2626;
+            background: #ffffff;
+            color: #dc2626;
+        }
+
+        .edit-actions .danger:hover {
+            background: #fef2f2;
         }
 
         .edit-button {
@@ -891,6 +921,7 @@
                     <div class="edit-error" id="edit-error"></div>
                 </div>
                 <div class="edit-actions">
+                    <button class="edit-button danger" type="button" id="edit-delete">删除</button>
                     <button class="edit-button" type="button" id="edit-cancel">取消</button>
                     <button class="edit-button primary" type="submit" id="edit-submit">保存到 Lark</button>
                 </div>

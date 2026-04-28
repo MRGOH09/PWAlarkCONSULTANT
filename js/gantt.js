@@ -3,6 +3,7 @@ class GanttChart {
     constructor() {
         this.consultants = [];
         this.editingRecordId = null;
+        this.editingSegmentRecordIds = [];
         this.autoRefreshMs = 15000;
         this.refreshTimer = null;
         this.isLoading = false;
@@ -86,6 +87,7 @@ class GanttChart {
 
         document.getElementById('edit-close').addEventListener('click', () => this.closeEditModal());
         document.getElementById('edit-cancel').addEventListener('click', () => this.closeEditModal());
+        document.getElementById('edit-delete').addEventListener('click', () => this.handleDeleteCurrent());
         document.getElementById('teacher-picker').addEventListener('click', (e) => this.handleTeacherPick(e));
         document.getElementById('teacher-picker').addEventListener('touchend', (e) => this.handleTeacherPick(e));
         document.getElementById('edit-modal').addEventListener('click', (e) => {
@@ -350,6 +352,7 @@ class GanttChart {
 
     renderTeacherView() {
         const filteredData = this.getFilteredData();
+        const conflictRecordIds = this.getConflictRecordIds(this.consultants);
         
         // 按老师分组
         const teacherSchedules = {};
@@ -392,12 +395,13 @@ class GanttChart {
                 
                 daySchedules.forEach(schedule => {
                     const campusClass = schedule.campus.toLowerCase();
+                    const conflictClass = conflictRecordIds.has(schedule.recordId) ? ' conflict' : '';
                     const duration = this.calculateScheduleHours(schedule);
                     const timeWithDuration = this.formatTimeWithDuration(schedule.checkin, schedule.checkout, duration);
                     html += `
-                        <div class="schedule-block ${campusClass}" 
+                        <div class="schedule-block ${campusClass}${conflictClass}" 
                              data-record-id="${this.escapeAttribute(schedule.recordId)}"
-                             title="${schedule.campus}: ${schedule.checkin} - ${schedule.checkout}">
+                             title="${this.escapeAttribute(this.getScheduleTitle(schedule, conflictRecordIds.has(schedule.recordId)))}">
                             ${schedule.campus}<br>
                             ${timeWithDuration}
                         </div>
@@ -416,6 +420,7 @@ class GanttChart {
 
     renderScheduleView() {
         const filteredData = this.getFilteredData();
+        const conflictRecordIds = this.getConflictRecordIds(this.consultants);
         
         if (filteredData.length === 0) {
             return '<div class="loading">没有找到符合条件的数据</div>';
@@ -470,17 +475,20 @@ class GanttChart {
                 const campusClass = this.getCampusClass(schedule.campus);
                 const teacherList = this.formatTeacherListWithDayHours(schedule.teachers, schedule.day, schedulesByDay[schedule.day]);
                 const recordIds = schedule.records.map(record => record.recordId);
+                const hasConflict = recordIds.some(recordId => conflictRecordIds.has(recordId));
+                const conflictClass = hasConflict ? ' conflict' : '';
                 const duration = this.calculateScheduleHours(schedule);
                 const timeWithDuration = this.formatTimeWithDuration(schedule.checkin, schedule.checkout, duration);
                 html += `
-                    <div class="timeline-block ${campusClass}"
+                    <div class="timeline-block ${campusClass}${conflictClass}"
                          data-segment-record-ids="${this.escapeAttribute(recordIds.join('|'))}"
                          style="--start: ${schedule.startOffset}; --duration: ${schedule.duration}; --lane: ${schedule.lane}"
-                         title="${this.escapeAttribute(`${schedule.campus}: ${schedule.teachers.join(', ')} ${schedule.checkin} - ${schedule.checkout}，点击选择老师修改时间`)}">
+                         title="${this.escapeAttribute(this.getScheduleTitle(schedule, hasConflict))}">
                         ${schedule.teachers.length > 1 ? `<div class="timeline-count">${schedule.teachers.length}</div>` : ''}
                         <div class="timeline-campus">${schedule.campus}</div>
                         <div class="timeline-teachers">${teacherList}</div>
                         <div class="timeline-time">${timeWithDuration}</div>
+                        ${hasConflict ? '<div class="timeline-conflict-mark">冲突</div>' : ''}
                     </div>
                 `;
             });
@@ -631,6 +639,11 @@ class GanttChart {
         return 'default-campus';
     }
 
+    getScheduleTitle(schedule, hasConflict) {
+        const base = `${schedule.campus}: ${schedule.teachers.join(', ')} ${schedule.checkin} - ${schedule.checkout}，点击修改时间`;
+        return hasConflict ? `${base}。注意：这位老师有重叠排班` : base;
+    }
+
     openSegmentModal(recordIdsText) {
         const recordIds = recordIdsText.split('|').filter(Boolean);
         const schedules = recordIds
@@ -648,6 +661,7 @@ class GanttChart {
         }
 
         this.editingRecordId = null;
+        this.editingSegmentRecordIds = schedules.map(schedule => schedule.recordId);
         const first = schedules[0];
         document.getElementById('edit-meta').innerHTML = `
             <div><strong>适用周:</strong> ${this.escapeHtml(first.week || '全部')}</div>
@@ -667,6 +681,9 @@ class GanttChart {
         document.getElementById('edit-error').textContent = '';
         document.getElementById('edit-submit').disabled = true;
         document.getElementById('edit-submit').textContent = '先选择老师';
+        document.getElementById('edit-delete').style.display = '';
+        document.getElementById('edit-delete').disabled = false;
+        document.getElementById('edit-delete').textContent = '删除此时间段';
 
         const modal = document.getElementById('edit-modal');
         modal.classList.add('open');
@@ -701,6 +718,7 @@ class GanttChart {
         }
 
         this.editingRecordId = recordId;
+        this.editingSegmentRecordIds = [];
         document.getElementById('edit-meta').innerHTML = `
             <div><strong>适用周:</strong> ${this.escapeHtml(schedule.week || '全部')}</div>
             <div><strong>星期:</strong> ${this.escapeHtml(schedule.day)}</div>
@@ -714,6 +732,9 @@ class GanttChart {
         document.getElementById('teacher-picker').classList.remove('open');
         document.getElementById('edit-submit').disabled = false;
         document.getElementById('edit-submit').textContent = '保存到 Lark';
+        document.getElementById('edit-delete').style.display = '';
+        document.getElementById('edit-delete').disabled = false;
+        document.getElementById('edit-delete').textContent = '删除';
 
         const modal = document.getElementById('edit-modal');
         modal.classList.add('open');
@@ -724,6 +745,7 @@ class GanttChart {
 
     closeEditModal() {
         this.editingRecordId = null;
+        this.editingSegmentRecordIds = [];
         const modal = document.getElementById('edit-modal');
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
@@ -781,6 +803,18 @@ class GanttChart {
         if (!checkin || !checkout) return this.showCreateError('进出时间不能为空');
         if (this.parseTimeToHours(checkout) <= this.parseTimeToHours(checkin)) {
             return this.showCreateError('出时间必须晚于进时间');
+        }
+
+        const conflicts = this.findScheduleConflicts({
+            recordId: '',
+            teachers: [teacher],
+            day,
+            week,
+            checkin,
+            checkout
+        });
+        if (conflicts.length > 0) {
+            return this.showCreateError(this.formatConflictMessage(conflicts[0]));
         }
 
         const submit = document.getElementById('create-submit');
@@ -844,6 +878,16 @@ class GanttChart {
             return;
         }
 
+        const conflicts = this.findScheduleConflicts({
+            ...schedule,
+            checkin,
+            checkout
+        });
+        if (conflicts.length > 0) {
+            this.showEditError(this.formatConflictMessage(conflicts[0]));
+            return;
+        }
+
         const submitButton = document.getElementById('edit-submit');
         submitButton.disabled = true;
         submitButton.textContent = '保存中...';
@@ -876,6 +920,93 @@ class GanttChart {
         }
     }
 
+    async handleDeleteCurrent() {
+        if (!this.editingRecordId && this.editingSegmentRecordIds.length > 0) {
+            await this.handleDeleteSegment();
+            return;
+        }
+
+        const schedule = this.consultants.find(item => item.recordId === this.editingRecordId);
+        if (!schedule) {
+            this.showEditError('找不到这条排班记录');
+            return;
+        }
+
+        const label = `${schedule.teachers.join(', ')} ${schedule.day} ${schedule.checkin}-${schedule.checkout}`;
+        if (!window.confirm(`确定要从 Lark 删除这条排班吗？\n${label}`)) {
+            return;
+        }
+
+        const deleteButton = document.getElementById('edit-delete');
+        deleteButton.disabled = true;
+        deleteButton.textContent = '删除中...';
+        this.showEditError('');
+
+        try {
+            const response = await fetch('/api/delete-consultant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recordId: schedule.recordId })
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.ok) {
+                throw new Error(result.error || '删除失败');
+            }
+
+            this.closeEditModal();
+            this.showToastSuccess('已从 Lark 删除');
+            await this.loadData({ forceRender: true });
+        } catch (error) {
+            this.showEditError(error.message || '删除失败');
+            deleteButton.disabled = false;
+            deleteButton.textContent = '删除';
+        }
+    }
+
+    async handleDeleteSegment() {
+        const schedules = this.editingSegmentRecordIds
+            .map(recordId => this.consultants.find(item => item.recordId === recordId))
+            .filter(Boolean);
+        if (schedules.length === 0) {
+            this.showEditError('找不到这个时间段');
+            return;
+        }
+
+        const first = schedules[0];
+        const label = `${first.day} ${first.campus} ${first.checkin}-${first.checkout}，共 ${schedules.length} 条老师排班`;
+        if (!window.confirm(`确定要从 Lark 删除整个时间段吗？\n${label}`)) {
+            return;
+        }
+
+        const deleteButton = document.getElementById('edit-delete');
+        deleteButton.disabled = true;
+        deleteButton.textContent = '删除中...';
+        this.showEditError('');
+
+        try {
+            for (const schedule of schedules) {
+                const response = await fetch('/api/delete-consultant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recordId: schedule.recordId })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.error || '删除失败');
+                }
+            }
+
+            this.closeEditModal();
+            this.showToastSuccess('已删除整个时间段');
+            await this.loadData({ forceRender: true });
+        } catch (error) {
+            this.showEditError(error.message || '删除失败');
+            deleteButton.disabled = false;
+            deleteButton.textContent = '删除此时间段';
+        }
+    }
+
     showEditError(message) {
         document.getElementById('edit-error').textContent = message;
     }
@@ -901,6 +1032,59 @@ class GanttChart {
 
     escapeAttribute(value) {
         return this.escapeHtml(value);
+    }
+
+    getConflictRecordIds(schedules) {
+        const conflictIds = new Set();
+        schedules.forEach(schedule => {
+            const conflicts = this.findScheduleConflicts(schedule, schedules);
+            if (conflicts.length > 0) {
+                conflictIds.add(schedule.recordId);
+                conflicts.forEach(conflict => conflictIds.add(conflict.recordId));
+            }
+        });
+        return conflictIds;
+    }
+
+    findScheduleConflicts(target, schedules = this.consultants) {
+        const targetTeachers = new Set(
+            this.normalizeTeachers(target.teachers).map(teacher => this.normalizeTeacherKey(teacher))
+        );
+        const targetStart = this.parseTimeToHours(target.checkin);
+        const targetEnd = this.parseTimeToHours(target.checkout);
+
+        return schedules.filter(schedule => {
+            if (schedule.recordId === target.recordId) {
+                return false;
+            }
+            if (schedule.day !== target.day) {
+                return false;
+            }
+            if (!this.weeksOverlap(schedule.week || '全部', target.week || '全部')) {
+                return false;
+            }
+            const sharedTeachers = this.normalizeTeachers(schedule.teachers)
+                .filter(teacher => targetTeachers.has(this.normalizeTeacherKey(teacher)));
+            if (sharedTeachers.length === 0) {
+                return false;
+            }
+
+            const scheduleStart = this.parseTimeToHours(schedule.checkin);
+            const scheduleEnd = this.parseTimeToHours(schedule.checkout);
+            return targetStart < scheduleEnd && scheduleStart < targetEnd;
+        });
+    }
+
+    weeksOverlap(weekA, weekB) {
+        return weekA === weekB || weekA === '全部' || weekB === '全部';
+    }
+
+    normalizeTeacherKey(teacher) {
+        return String(teacher || '').trim().toLowerCase();
+    }
+
+    formatConflictMessage(conflict) {
+        return `时间重叠：${this.normalizeTeachers(conflict.teachers).join('、')} 已有 ${conflict.week || '全部'} ${conflict.day} ${conflict.checkin}-${conflict.checkout} ${conflict.campus} 排班。请先改掉前面的时间。`;
     }
 
 
