@@ -63,11 +63,22 @@ class GanttChart {
 
         const content = document.getElementById('content');
         content.addEventListener('click', (e) => {
-            const block = e.target.closest('[data-record-id]');
+            const choice = e.target.closest('[data-picker-record-id]');
+            if (choice) {
+                this.openEditModal(choice.dataset.pickerRecordId);
+                return;
+            }
+
+            const block = e.target.closest('[data-record-id], [data-segment-record-ids]');
             if (!block) {
                 return;
             }
-            this.openEditModal(block.dataset.recordId);
+
+            if (block.dataset.segmentRecordIds) {
+                this.openSegmentModal(block.dataset.segmentRecordIds);
+            } else {
+                this.openEditModal(block.dataset.recordId);
+            }
         });
 
         document.getElementById('edit-close').addEventListener('click', () => this.closeEditModal());
@@ -374,7 +385,7 @@ class GanttChart {
         `;
 
         days.forEach(day => {
-            const schedules = this.layoutDaySchedules(schedulesByDay[day]);
+            const schedules = this.layoutDaySchedules(this.mergeScheduleSegments(schedulesByDay[day]));
             const laneCount = schedules.reduce((max, schedule) => Math.max(max, schedule.lane + 1), 1);
 
             html += `
@@ -389,12 +400,14 @@ class GanttChart {
 
             schedules.forEach(schedule => {
                 const campusClass = this.getCampusClass(schedule.campus);
-                const teacherList = schedule.teachers.join(', ');
+                const teacherList = this.formatTeacherList(schedule.teachers);
+                const recordIds = schedule.records.map(record => record.recordId);
                 html += `
                     <div class="timeline-block ${campusClass}"
-                         data-record-id="${this.escapeAttribute(schedule.recordId)}"
+                         data-segment-record-ids="${this.escapeAttribute(recordIds.join('|'))}"
                          style="--start: ${schedule.startOffset}; --duration: ${schedule.duration}; --lane: ${schedule.lane}"
-                         title="${this.escapeAttribute(`${schedule.campus}: ${teacherList} ${schedule.checkin} - ${schedule.checkout}，点击修改时间`)}">
+                         title="${this.escapeAttribute(`${schedule.campus}: ${schedule.teachers.join(', ')} ${schedule.checkin} - ${schedule.checkout}，点击选择老师修改时间`)}">
+                        ${schedule.teachers.length > 1 ? `<div class="timeline-count">${schedule.teachers.length}</div>` : ''}
                         <div class="timeline-campus">${schedule.campus}</div>
                         <div class="timeline-teachers">${teacherList}</div>
                         <div class="timeline-time">${schedule.checkin} - ${schedule.checkout}</div>
@@ -407,6 +420,49 @@ class GanttChart {
 
         html += '</div></div></div>';
         return html;
+    }
+
+    mergeScheduleSegments(schedules) {
+        const segments = new Map();
+
+        schedules.forEach(schedule => {
+            const key = [
+                schedule.day,
+                schedule.campus,
+                this.normalizeTimeKey(schedule.checkin),
+                this.normalizeTimeKey(schedule.checkout)
+            ].join('|');
+
+            if (!segments.has(key)) {
+                segments.set(key, {
+                    ...schedule,
+                    teachers: [],
+                    records: []
+                });
+            }
+
+            const segment = segments.get(key);
+            schedule.teachers.forEach(teacher => {
+                if (!segment.teachers.includes(teacher)) {
+                    segment.teachers.push(teacher);
+                }
+            });
+            segment.records.push(schedule);
+        });
+
+        return Array.from(segments.values());
+    }
+
+    normalizeTimeKey(timeStr) {
+        return String(timeStr || '').trim().toUpperCase().replace(/\s+/g, ' ');
+    }
+
+    formatTeacherList(teachers) {
+        if (teachers.length <= 3) {
+            return teachers.join(', ');
+        }
+
+        return `${teachers.slice(0, 3).join(', ')} +${teachers.length - 3}`;
     }
 
     layoutDaySchedules(schedules) {
@@ -488,6 +544,47 @@ class GanttChart {
         return 'default-campus';
     }
 
+    openSegmentModal(recordIdsText) {
+        const recordIds = recordIdsText.split('|').filter(Boolean);
+        const schedules = recordIds
+            .map(recordId => this.consultants.find(item => item.recordId === recordId))
+            .filter(Boolean);
+
+        if (schedules.length === 0) {
+            this.showToastError('找不到这个班段');
+            return;
+        }
+
+        if (schedules.length === 1) {
+            this.openEditModal(schedules[0].recordId);
+            return;
+        }
+
+        this.editingRecordId = null;
+        const first = schedules[0];
+        document.getElementById('edit-meta').innerHTML = `
+            <div><strong>班段:</strong> ${this.escapeHtml(first.day)} ${this.escapeHtml(first.campus)}</div>
+            <div><strong>时间:</strong> ${this.escapeHtml(first.checkin)} - ${this.escapeHtml(first.checkout)}</div>
+            <div><strong>请选择要修改的老师</strong></div>
+        `;
+        document.getElementById('teacher-picker').innerHTML = schedules.map(schedule => `
+            <button class="teacher-choice" type="button" data-picker-record-id="${this.escapeAttribute(schedule.recordId)}">
+                ${this.escapeHtml(schedule.teachers.join(', '))}
+            </button>
+        `).join('');
+        document.getElementById('teacher-picker').classList.add('open');
+        document.getElementById('edit-checkin').value = first.checkin;
+        document.getElementById('edit-checkout').value = first.checkout;
+        document.getElementById('edit-error').textContent = '';
+        document.getElementById('edit-submit').disabled = true;
+        document.getElementById('edit-submit').textContent = '先选择老师';
+
+        const modal = document.getElementById('edit-modal');
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        this.updateSyncStatus('编辑中，已暂停自动刷新');
+    }
+
     openEditModal(recordId) {
         const schedule = this.consultants.find(item => item.recordId === recordId);
         if (!schedule) {
@@ -504,6 +601,8 @@ class GanttChart {
         document.getElementById('edit-checkin').value = schedule.checkin;
         document.getElementById('edit-checkout').value = schedule.checkout;
         document.getElementById('edit-error').textContent = '';
+        document.getElementById('teacher-picker').innerHTML = '';
+        document.getElementById('teacher-picker').classList.remove('open');
         document.getElementById('edit-submit').disabled = false;
         document.getElementById('edit-submit').textContent = '保存到 Lark';
 

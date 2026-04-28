@@ -347,6 +347,20 @@
         .timeline-time {
             opacity: 0.86;
         }
+
+        .timeline-count {
+            position: absolute;
+            right: 0.5rem;
+            top: 0.45rem;
+            min-width: 1.5rem;
+            padding: 0.12rem 0.42rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-align: center;
+        }
         
         .loading {
             text-align: center;
@@ -509,6 +523,32 @@
             font-size: 0.86rem;
         }
 
+        .teacher-picker {
+            display: none;
+            gap: 0.45rem;
+        }
+
+        .teacher-picker.open {
+            display: grid;
+        }
+
+        .teacher-choice {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 0.65rem 0.75rem;
+            text-align: left;
+            color: #1e293b;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .teacher-choice:hover {
+            border-color: #0f766e;
+            background: #f0fdfa;
+        }
+
         .edit-actions {
             padding: 1rem;
             border-top: 1px solid #e2e8f0;
@@ -639,6 +679,7 @@
                 </div>
                 <div class="edit-body">
                     <div class="edit-meta" id="edit-meta"></div>
+                    <div class="teacher-picker" id="teacher-picker"></div>
                     <div class="edit-field">
                         <label for="edit-checkin">进 (Check-in)</label>
                         <input id="edit-checkin" name="checkin" placeholder="例如 7.30 AM" autocomplete="off" required>
