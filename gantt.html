@@ -600,19 +600,73 @@
         }
         
         @media (max-width: 768px) {
+            body {
+                font-size: 13px;
+            }
+
+            .header {
+                padding: 0.85rem 0.75rem;
+            }
+
+            .header h1 {
+                font-size: 1.1rem;
+            }
+
+            .header p {
+                font-size: 0.82rem;
+            }
+
+            .nav-tabs {
+                padding: 0 0.5rem;
+            }
+
+            .nav-tab {
+                padding: 0.72rem 0.75rem;
+                font-size: 0.86rem;
+            }
+
             .controls {
-                flex-direction: column;
-                align-items: stretch;
+                flex-wrap: nowrap;
+                align-items: center;
+                gap: 0.6rem;
+                overflow-x: auto;
+                padding: 0.65rem 0.7rem;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .controls::-webkit-scrollbar,
+            .gantt-content::-webkit-scrollbar,
+            .nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .filter-group {
+                flex: 0 0 auto;
+                flex-wrap: nowrap;
+                gap: 0.25rem;
+                justify-content: flex-start;
+            }
+
+            .filter-label {
+                margin-right: 0.25rem;
+                white-space: nowrap;
+            }
+
+            .filter-btn,
+            .clear-filter-btn {
+                padding: 0.34rem 0.65rem;
+                font-size: 0.78rem;
+                white-space: nowrap;
+            }
+
+            .filter-scope {
+                white-space: nowrap;
+                font-size: 0.78rem;
             }
 
             .sync-status {
-                align-items: stretch;
-                flex-direction: column;
-                gap: 0.55rem;
-            }
-            
-            .filter-group {
-                justify-content: center;
+                padding: 0.55rem 0.7rem;
+                font-size: 0.78rem;
             }
             
             .gantt-table th,
@@ -626,15 +680,87 @@
                 padding: 1px 4px;
             }
 
+            .gantt-container {
+                margin: 0.55rem 0;
+                border-left: none;
+                border-right: none;
+                border-radius: 0;
+            }
+
+            .gantt-header {
+                padding: 0.7rem;
+            }
+
+            .gantt-subtitle {
+                font-size: 0.76rem;
+                white-space: nowrap;
+            }
+
+            .gantt-content {
+                -webkit-overflow-scrolling: touch;
+            }
+
             .timeline-chart {
-                --day-col: 86px;
-                --hour-width: 72px;
+                --day-col: 58px;
+                --hour-width: 60px;
+                --slot-height: 66px;
             }
 
             .timeline-corner,
             .timeline-hour,
             .timeline-day {
-                padding: 0.65rem 0.5rem;
+                padding: 0.55rem 0.4rem;
+            }
+
+            .timeline-corner,
+            .timeline-day {
+                font-size: 0.82rem;
+            }
+
+            .timeline-hour {
+                font-size: 0.7rem;
+            }
+
+            .timeline-row,
+            .timeline-lane {
+                min-height: calc(var(--slot-height) * var(--lanes, 1) + 0.75rem);
+            }
+
+            .timeline-block {
+                top: calc(0.38rem + (var(--lane, 0) * var(--slot-height)));
+                width: max(calc(var(--duration) * var(--hour-width) - 6px), 56px);
+                height: 54px;
+                border-radius: 7px;
+                padding: 0.32rem 0.42rem;
+            }
+
+            .timeline-campus {
+                font-size: 0.66rem;
+                margin-bottom: 0.08rem;
+            }
+
+            .timeline-teachers,
+            .timeline-time {
+                font-size: 0.61rem;
+                line-height: 1.18;
+            }
+
+            .timeline-count {
+                right: 0.32rem;
+                top: 0.32rem;
+                min-width: 1.25rem;
+                padding: 0.08rem 0.32rem;
+                font-size: 0.62rem;
+            }
+
+            .edit-dialog {
+                width: min(420px, calc(100vw - 1rem));
+            }
+
+            .edit-header,
+            .edit-body,
+            .edit-actions {
+                padding: 0.8rem;
             }
         }
     </style>
