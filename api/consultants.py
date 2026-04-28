@@ -97,29 +97,25 @@ class handler(BaseHTTPRequestHandler):
             print(f"记录 {i+1} 字段: {list(fields.keys())}")  # 调试信息
             
             try:
-                # 直接按字段顺序提取数据
-                field_values = list(fields.values())
+                # 按字段名提取数据
+                day = fields.get("星期", "")
+                teachers = fields.get("老师", [])
+                checkin = fields.get("进 (Check-in)", "")
+                checkout = fields.get("出 (Check-out)", "")
+                campus = fields.get("校区", "")
                 
-                if len(field_values) >= 5:
-                    # 假设字段顺序为：星期、老师、进、出、校区
-                    day = self.extract_value(field_values[0])
-                    teachers = self.extract_teachers(field_values[1])
-                    checkin = self.extract_value(field_values[2]) 
-                    checkout = self.extract_value(field_values[3])
-                    campus = self.extract_value(field_values[4])
-                    
-                    print(f"提取的数据: day={day}, teachers={teachers}, checkin={checkin}, checkout={checkout}, campus={campus}")
-                    
-                    # 只处理有效数据
-                    if day and teachers and checkin and checkout and campus:
-                        consultant = {
-                            "day": day,
-                            "teachers": teachers,
-                            "checkin": checkin,
-                            "checkout": checkout,
-                            "campus": campus
-                        }
-                        processed_consultants.append(consultant)
+                print(f"提取的数据: day={day}, teachers={teachers}, checkin={checkin}, checkout={checkout}, campus={campus}")
+                
+                # 只处理有效数据
+                if day and teachers and checkin and checkout and campus:
+                    consultant = {
+                        "day": day,
+                        "teachers": teachers,
+                        "checkin": checkin,
+                        "checkout": checkout,
+                        "campus": campus
+                    }
+                    processed_consultants.append(consultant)
                         
             except Exception as e:
                 print(f"处理单条记录时出错: {str(e)}")
