@@ -101,6 +101,27 @@
             border-color: #0f766e;
         }
 
+        .clear-filter-btn {
+            padding: 0.38rem 0.8rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: #334155;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .filter-scope {
+            color: #64748b;
+            font-size: 0.86rem;
+            font-weight: 700;
+        }
+
+        .filter-scope strong {
+            color: #0f766e;
+        }
+
         .sync-status {
             background: #ffffff;
             border-bottom: 1px solid #d9e2ec;
@@ -635,6 +656,11 @@
     </div>
     
     <div class="controls">
+        <div class="filter-group" id="teacher-filter">
+            <span class="filter-label">老师:</span>
+            <button class="filter-btn active" data-teacher="all">全部</button>
+        </div>
+
         <div class="filter-group">
             <span class="filter-label">星期:</span>
             <button class="filter-btn active" data-day="all">全部</button>
@@ -654,10 +680,10 @@
             <button class="filter-btn" data-campus="HM">HM</button>
             <button class="filter-btn" data-campus="SUBANG">SUBANG</button>
         </div>
-        
-        <div class="filter-group" id="teacher-filter" style="display:none;">
-            <span class="filter-label">老师:</span>
-            <button class="filter-btn active" data-teacher="all">全部</button>
+
+        <div class="filter-group">
+            <button class="clear-filter-btn" id="clear-filters" type="button">清除筛选</button>
+            <span class="filter-scope" id="filter-scope">当前范围：<strong>全部</strong></span>
         </div>
     </div>
 

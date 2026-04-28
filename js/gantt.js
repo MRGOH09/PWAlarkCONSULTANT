@@ -37,7 +37,6 @@ class GanttChart {
                 document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentView = e.target.dataset.view;
-                this.updateTeacherFilter();
                 this.renderContent();
             });
         });
@@ -57,6 +56,7 @@ class GanttChart {
                     this.filters.teacher = e.target.dataset.teacher;
                 }
                 
+                this.updateFilterScope();
                 this.renderContent();
             });
         });
@@ -98,6 +98,7 @@ class GanttChart {
         });
         document.getElementById('edit-form').addEventListener('submit', (e) => this.handleEditSubmit(e));
         document.getElementById('refresh-btn').addEventListener('click', () => this.loadData({ forceRender: true }));
+        document.getElementById('clear-filters').addEventListener('click', () => this.clearFilters());
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this.stopAutoRefresh();
@@ -146,7 +147,7 @@ class GanttChart {
             this.consultants = normalizedConsultants;
             this.lastDataSignature = nextSignature;
             this.lastUpdatedAt = new Date();
-            this.updateTeacherFilter();
+            this.updateFilters();
 
             if (forceRender || hasChanged) {
                 this.renderContent();
@@ -218,40 +219,77 @@ class GanttChart {
         statusText.innerHTML = `最后同步 <strong>${this.formatClockTime(this.lastUpdatedAt)}</strong>，每 15 秒自动刷新`;
     }
 
+    updateFilters() {
+        this.updateTeacherFilter();
+        this.updateFilterScope();
+    }
+
     updateTeacherFilter() {
         const teacherFilter = document.getElementById('teacher-filter');
-        if (this.currentView === 'teacher') {
-            teacherFilter.style.display = 'flex';
-            
-            // 获取所有老师列表
-            const allTeachers = new Set();
-            this.consultants.forEach(consultant => {
-                consultant.teachers.forEach(teacher => allTeachers.add(teacher));
-            });
-            
-            // 更新老师筛选按钮
-            const teacherButtons = Array.from(allTeachers).sort().map(teacher => 
-                `<button class="filter-btn" data-teacher="${teacher}">${teacher}</button>`
-            ).join('');
-            
-            teacherFilter.innerHTML = `
-                <span class="filter-label">老师:</span>
-                <button class="filter-btn active" data-teacher="all">全部</button>
-                ${teacherButtons}
-            `;
-            
-            // 重新绑定事件
-            teacherFilter.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    teacherFilter.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    this.filters.teacher = e.target.dataset.teacher;
-                    this.renderContent();
-                });
-            });
-        } else {
-            teacherFilter.style.display = 'none';
+        const allTeachers = new Set();
+        this.consultants.forEach(consultant => {
+            consultant.teachers.forEach(teacher => allTeachers.add(teacher));
+        });
+
+        if (this.filters.teacher !== 'all' && !allTeachers.has(this.filters.teacher)) {
+            this.filters.teacher = 'all';
         }
+
+        const teacherButtons = Array.from(allTeachers).sort().map(teacher => 
+            `<button class="filter-btn ${this.filters.teacher === teacher ? 'active' : ''}" data-teacher="${this.escapeAttribute(teacher)}">${this.escapeHtml(teacher)}</button>`
+        ).join('');
+
+        teacherFilter.innerHTML = `
+            <span class="filter-label">老师:</span>
+            <button class="filter-btn ${this.filters.teacher === 'all' ? 'active' : ''}" data-teacher="all">全部</button>
+            ${teacherButtons}
+        `;
+
+        teacherFilter.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                teacherFilter.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.filters.teacher = e.target.dataset.teacher;
+                this.updateFilterScope();
+                this.renderContent();
+            });
+        });
+    }
+
+    updateFilterScope() {
+        const scope = document.getElementById('filter-scope');
+        if (!scope) {
+            return;
+        }
+
+        const parts = [];
+        if (this.filters.teacher !== 'all') {
+            parts.push(this.filters.teacher);
+        }
+        if (this.filters.day !== 'all') {
+            parts.push(this.filters.day.replace('星期', '周'));
+        }
+        if (this.filters.campus !== 'all') {
+            parts.push(this.filters.campus);
+        }
+
+        scope.innerHTML = `当前范围：<strong>${this.escapeHtml(parts.length ? parts.join(' / ') : '全部')}</strong>`;
+    }
+
+    clearFilters() {
+        this.filters = {
+            day: 'all',
+            campus: 'all',
+            teacher: 'all'
+        };
+
+        document.querySelectorAll('[data-day], [data-campus]').forEach(btn => {
+            const isAll = btn.dataset.day === 'all' || btn.dataset.campus === 'all';
+            btn.classList.toggle('active', isAll);
+        });
+
+        this.updateFilters();
+        this.renderContent();
     }
 
     getFilteredData() {
