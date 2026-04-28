@@ -623,6 +623,7 @@ class GanttChart {
         this.editingRecordId = null;
         const first = schedules[0];
         document.getElementById('edit-meta').innerHTML = `
+            <div><strong>适用周:</strong> ${this.escapeHtml(first.week || '全部')}</div>
             <div><strong>班段:</strong> ${this.escapeHtml(first.day)} ${this.escapeHtml(first.campus)}</div>
             <div><strong>时间:</strong> ${this.escapeHtml(first.checkin)} - ${this.escapeHtml(first.checkout)}</div>
             <div><strong>请选择要修改的老师</strong></div>
@@ -674,6 +675,7 @@ class GanttChart {
 
         this.editingRecordId = recordId;
         document.getElementById('edit-meta').innerHTML = `
+            <div><strong>适用周:</strong> ${this.escapeHtml(schedule.week || '全部')}</div>
             <div><strong>星期:</strong> ${this.escapeHtml(schedule.day)}</div>
             <div><strong>老师:</strong> ${this.escapeHtml(schedule.teachers.join(', '))}</div>
             <div><strong>校区:</strong> ${this.escapeHtml(schedule.campus)}</div>
