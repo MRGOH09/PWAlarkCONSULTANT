@@ -1094,7 +1094,7 @@ class GanttChart {
     }
 
     weeksOverlap(weekA, weekB) {
-        return weekA === weekB || weekA === '全部' || weekB === '全部';
+        return weekA === weekB;
     }
 
     normalizeTeacherKey(teacher) {

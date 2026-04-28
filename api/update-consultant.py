@@ -184,7 +184,7 @@ class handler(BaseHTTPRequestHandler):
         return hour * 60 + minute
 
     def weeks_overlap(self, week_a, week_b):
-        return week_a == week_b or week_a == "全部" or week_b == "全部"
+        return week_a == week_b
 
     def times_overlap(self, start_a, end_a, start_b, end_b):
         return start_a < end_b and start_b < end_a
