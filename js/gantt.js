@@ -84,6 +84,12 @@ class GanttChart {
         document.getElementById('edit-close').addEventListener('click', () => this.closeEditModal());
         document.getElementById('edit-cancel').addEventListener('click', () => this.closeEditModal());
         document.getElementById('edit-modal').addEventListener('click', (e) => {
+            const choice = e.target.closest('[data-picker-record-id]');
+            if (choice) {
+                this.openEditModal(choice.dataset.pickerRecordId);
+                return;
+            }
+
             if (e.target.id === 'edit-modal') {
                 this.closeEditModal();
             }
