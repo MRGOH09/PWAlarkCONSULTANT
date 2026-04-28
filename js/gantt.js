@@ -10,6 +10,7 @@ class GanttChart {
         this.lastUpdatedAt = null;
         this.currentView = 'schedule';
         this.filters = {
+            week: 'all',
             day: 'all',
             campus: 'all',
             teacher: 'all'
@@ -54,6 +55,8 @@ class GanttChart {
                     this.filters.campus = e.target.dataset.campus;
                 } else if (e.target.dataset.teacher) {
                     this.filters.teacher = e.target.dataset.teacher;
+                } else if (e.target.dataset.week) {
+                    this.filters.week = e.target.dataset.week;
                 }
                 
                 this.updateFilterScope();
@@ -170,7 +173,8 @@ class GanttChart {
             teachers: this.normalizeTeachers(item.teachers),
             checkin: item.checkin,
             checkout: item.checkout,
-            campus: item.campus
+            campus: item.campus,
+            week: item.week || '全部'
         })));
     }
 
@@ -181,7 +185,8 @@ class GanttChart {
 
         return data.map(item => ({
             ...item,
-            teachers: this.normalizeTeachers(item.teachers)
+            teachers: this.normalizeTeachers(item.teachers),
+            week: item.week || '全部'
         }));
     }
 
@@ -263,6 +268,9 @@ class GanttChart {
         }
 
         const parts = [];
+        if (this.filters.week !== 'all') {
+            parts.push(this.filters.week);
+        }
         if (this.filters.teacher !== 'all') {
             parts.push(this.filters.teacher);
         }
@@ -278,13 +286,14 @@ class GanttChart {
 
     clearFilters() {
         this.filters = {
+            week: 'all',
             day: 'all',
             campus: 'all',
             teacher: 'all'
         };
 
-        document.querySelectorAll('[data-day], [data-campus]').forEach(btn => {
-            const isAll = btn.dataset.day === 'all' || btn.dataset.campus === 'all';
+        document.querySelectorAll('[data-week], [data-day], [data-campus]').forEach(btn => {
+            const isAll = btn.dataset.week === 'all' || btn.dataset.day === 'all' || btn.dataset.campus === 'all';
             btn.classList.toggle('active', isAll);
         });
 
@@ -294,6 +303,11 @@ class GanttChart {
 
     getFilteredData() {
         return this.consultants.filter(consultant => {
+            // 周别筛选
+            if (this.filters.week !== 'all' && consultant.week !== this.filters.week) {
+                return false;
+            }
+
             // 星期筛选
             if (this.filters.day !== 'all' && consultant.day !== this.filters.day) {
                 return false;

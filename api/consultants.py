@@ -103,8 +103,9 @@ class handler(BaseHTTPRequestHandler):
                 checkin = self.extract_value(fields.get("进 (Check-in)", ""))
                 checkout = self.extract_value(fields.get("出 (Check-out)", ""))
                 campus = self.extract_value(fields.get("校区", ""))
+                week = self.extract_value(fields.get("适用周", "")) or "全部"
                 
-                print(f"提取的数据: day={day}, teachers={teachers}, checkin={checkin}, checkout={checkout}, campus={campus}")
+                print(f"提取的数据: week={week}, day={day}, teachers={teachers}, checkin={checkin}, checkout={checkout}, campus={campus}")
                 
                 # 只处理有效数据
                 if day and teachers and checkin and checkout and campus:
@@ -114,7 +115,8 @@ class handler(BaseHTTPRequestHandler):
                         "teachers": teachers,
                         "checkin": checkin,
                         "checkout": checkout,
-                        "campus": campus
+                        "campus": campus,
+                        "week": week
                     }
                     processed_consultants.append(consultant)
                         
