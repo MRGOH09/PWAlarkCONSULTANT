@@ -1,7 +1,6 @@
 // Service Worker for PWA
-const CACHE_NAME = 'me-education-v6';
+const CACHE_NAME = 'me-education-v7';
 const urlsToCache = [
-    '/js/gantt.js',
     '/manifest.json'
 ];
 
@@ -31,6 +30,17 @@ self.addEventListener('fetch', event => {
                    (req.headers.get('accept') || '').includes('text/html');
 
     if (isHTML) {
+        event.respondWith(
+            fetch(req).then(res => {
+                const copy = res.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+                return res;
+            }).catch(() => caches.match(req))
+        );
+        return;
+    }
+
+    if (new URL(req.url).pathname === '/js/gantt.js') {
         event.respondWith(
             fetch(req).then(res => {
                 const copy = res.clone();
