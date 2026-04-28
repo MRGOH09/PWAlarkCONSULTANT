@@ -2,12 +2,14 @@
 class GanttChart {
     constructor() {
         this.consultants = [];
-        this.currentView = 'teacher';
+        this.currentView = 'schedule';
         this.filters = {
             day: 'all',
             campus: 'all',
             teacher: 'all'
         };
+        this.timelineStart = 7;
+        this.timelineEnd = 22;
         this.timeSlots = [
             '7:00-8:00', '8:00-9:00', '9:00-10:00', '10:00-11:00', '11:00-12:00',
             '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
@@ -210,69 +212,140 @@ class GanttChart {
             return '<div class="loading">没有找到符合条件的数据</div>';
         }
 
-        // 按时间段和日期分组
-        const scheduleGrid = {};
         const days = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
-        
-        // 初始化网格
-        this.timeSlots.forEach(slot => {
-            scheduleGrid[slot] = {};
-            days.forEach(day => {
-                scheduleGrid[slot][day] = [];
-            });
+        const schedulesByDay = {};
+        days.forEach(day => {
+            schedulesByDay[day] = [];
         });
 
-        // 填充数据
         filteredData.forEach(consultant => {
-            const timeRange = this.getTimeSlot(consultant.checkin, consultant.checkout);
-            timeRange.forEach(slot => {
-                if (scheduleGrid[slot] && scheduleGrid[slot][consultant.day]) {
-                    scheduleGrid[slot][consultant.day].push(consultant);
-                }
-            });
+            if (schedulesByDay[consultant.day]) {
+                schedulesByDay[consultant.day].push(consultant);
+            }
         });
+
+        const hours = Array.from(
+            { length: this.timelineEnd - this.timelineStart },
+            (_, index) => this.timelineStart + index
+        );
 
         let html = `
             <div class="gantt-container">
-                <div class="gantt-header">🏫 时间段排班表</div>
+                <div class="gantt-header">
+                    <span>周排班甘特图</span>
+                    <span class="gantt-subtitle">横轴时间，纵轴星期</span>
+                </div>
                 <div class="gantt-content">
-                    <table class="gantt-table">
-                        <thead>
-                            <tr>
-                                <th class="teacher-name">时间</th>
-                                ${days.map(day => `<th>${day}</th>`).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="timeline-chart">
+                        <div class="timeline-hours">
+                            <div class="timeline-corner">星期</div>
+                            ${hours.map(hour => `<div class="timeline-hour">${this.formatHour(hour)}</div>`).join('')}
+                        </div>
         `;
 
-        this.timeSlots.forEach(slot => {
-            html += `<tr><td class="teacher-name">${slot}</td>`;
-            
-            days.forEach(day => {
-                const schedules = scheduleGrid[slot][day];
-                html += '<td class="time-slot">';
-                
-                schedules.forEach(schedule => {
-                    const campusClass = schedule.campus.toLowerCase();
-                    const teacherList = schedule.teachers.join(', ');
-                    html += `
-                        <div class="schedule-block ${campusClass}" 
-                             title="${schedule.campus}: ${teacherList}">
-                            ${schedule.campus}<br>
-                            ${teacherList}
-                        </div>
-                    `;
-                });
-                
-                html += '</td>';
+        days.forEach(day => {
+            const schedules = this.layoutDaySchedules(schedulesByDay[day]);
+            const laneCount = schedules.reduce((max, schedule) => Math.max(max, schedule.lane + 1), 1);
+
+            html += `
+                <div class="timeline-row" style="--lanes: ${laneCount}">
+                    <div class="timeline-day">${day.replace('星期', '周')}</div>
+                    <div class="timeline-lane" style="--lanes: ${laneCount}">
+            `;
+
+            if (schedules.length === 0) {
+                html += '<div class="timeline-empty">暂无排班</div>';
+            }
+
+            schedules.forEach(schedule => {
+                const campusClass = this.getCampusClass(schedule.campus);
+                const teacherList = schedule.teachers.join(', ');
+                html += `
+                    <div class="timeline-block ${campusClass}"
+                         style="--start: ${schedule.startOffset}; --duration: ${schedule.duration}; --lane: ${schedule.lane}"
+                         title="${schedule.campus}: ${teacherList} ${schedule.checkin} - ${schedule.checkout}">
+                        <div class="timeline-campus">${schedule.campus}</div>
+                        <div class="timeline-teachers">${teacherList}</div>
+                        <div class="timeline-time">${schedule.checkin} - ${schedule.checkout}</div>
+                    </div>
+                `;
             });
-            
-            html += '</tr>';
+
+            html += '</div></div>';
         });
 
-        html += '</tbody></table></div></div>';
+        html += '</div></div></div>';
         return html;
+    }
+
+    layoutDaySchedules(schedules) {
+        const laneEnds = [];
+
+        return schedules
+            .map(schedule => {
+                const start = this.parseTimeToHours(schedule.checkin);
+                const end = this.parseTimeToHours(schedule.checkout);
+                const safeStart = Math.min(Math.max(start, this.timelineStart), this.timelineEnd);
+                const safeEnd = Math.min(Math.max(end, safeStart + 0.25), this.timelineEnd);
+
+                return {
+                    ...schedule,
+                    start,
+                    end,
+                    startOffset: safeStart - this.timelineStart,
+                    duration: Math.max(safeEnd - safeStart, 0.5)
+                };
+            })
+            .sort((a, b) => a.start - b.start || a.end - b.end)
+            .map(schedule => {
+                let lane = laneEnds.findIndex(end => end <= schedule.start);
+                if (lane === -1) {
+                    lane = laneEnds.length;
+                    laneEnds.push(schedule.end);
+                } else {
+                    laneEnds[lane] = schedule.end;
+                }
+
+                return { ...schedule, lane };
+            });
+    }
+
+    parseTimeToHours(timeStr) {
+        if (!timeStr) {
+            return this.timelineStart;
+        }
+
+        const normalized = String(timeStr).trim();
+        const match = normalized.match(/(\d{1,2})(?:[:.](\d{1,2}))?\s*(AM|PM)?/i);
+        if (!match) {
+            return this.timelineStart;
+        }
+
+        let hour = parseInt(match[1], 10);
+        const minute = parseInt(match[2] || '0', 10);
+        const period = match[3] ? match[3].toLowerCase() : '';
+
+        if (period === 'pm' && hour !== 12) {
+            hour += 12;
+        } else if (period === 'am' && hour === 12) {
+            hour = 0;
+        }
+
+        return hour + minute / 60;
+    }
+
+    formatHour(hour) {
+        const suffix = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:00 ${suffix}`;
+    }
+
+    getCampusClass(campus) {
+        const normalized = String(campus || '').toLowerCase();
+        if (normalized === 'pu' || normalized === 'hm' || normalized === 'subang') {
+            return normalized;
+        }
+        return 'default-campus';
     }
 
     renderSummaryView() {
