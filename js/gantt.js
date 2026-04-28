@@ -375,7 +375,8 @@ class GanttChart {
         `;
 
         Object.keys(teacherSchedules).sort().forEach(teacher => {
-            html += `<tr><td class="teacher-name">${teacher}</td>`;
+            const teacherTotalHours = this.calculateTeacherTotalHours(teacherSchedules[teacher]);
+            html += `<tr><td class="teacher-name">${teacher}<br><small style="color: #64748b; font-weight: normal;">${this.formatHours(teacherTotalHours)}</small></td>`;
             
             days.forEach(day => {
                 const daySchedules = teacherSchedules[teacher].filter(s => s.day === day);
@@ -383,12 +384,14 @@ class GanttChart {
                 
                 daySchedules.forEach(schedule => {
                     const campusClass = schedule.campus.toLowerCase();
+                    const duration = this.calculateScheduleHours(schedule);
+                    const timeWithDuration = this.formatTimeWithDuration(schedule.checkin, schedule.checkout, duration);
                     html += `
                         <div class="schedule-block ${campusClass}" 
                              data-record-id="${this.escapeAttribute(schedule.recordId)}"
                              title="${schedule.campus}: ${schedule.checkin} - ${schedule.checkout}">
                             ${schedule.campus}<br>
-                            ${schedule.checkin}-${schedule.checkout}
+                            ${timeWithDuration}
                         </div>
                     `;
                 });
@@ -464,7 +467,7 @@ class GanttChart {
                 const teacherList = this.formatTeacherList(schedule.teachers);
                 const recordIds = schedule.records.map(record => record.recordId);
                 const duration = this.calculateScheduleHours(schedule);
-                const durationText = this.formatHours(duration);
+                const timeWithDuration = this.formatTimeWithDuration(schedule.checkin, schedule.checkout, duration);
                 html += `
                     <div class="timeline-block ${campusClass}"
                          data-segment-record-ids="${this.escapeAttribute(recordIds.join('|'))}"
@@ -473,8 +476,7 @@ class GanttChart {
                         ${schedule.teachers.length > 1 ? `<div class="timeline-count">${schedule.teachers.length}</div>` : ''}
                         <div class="timeline-campus">${schedule.campus}</div>
                         <div class="timeline-teachers">${teacherList}</div>
-                        <div class="timeline-time">${schedule.checkin} - ${schedule.checkout}</div>
-                        <div class="timeline-duration">${durationText}</div>
+                        <div class="timeline-time">${timeWithDuration}</div>
                     </div>
                 `;
             });
@@ -800,6 +802,36 @@ class GanttChart {
         return Number.isInteger(rounded) ? `${rounded}h` : `${rounded.toFixed(1)}h`;
     }
 
+    formatTimeWithDuration(checkin, checkout, duration) {
+        const normalizedCheckin = this.normalizeTimeDisplay(checkin);
+        const normalizedCheckout = this.normalizeTimeDisplay(checkout);
+        const durationText = this.formatHours(duration);
+        return `${normalizedCheckin}-${normalizedCheckout} (${durationText})`;
+    }
+
+    normalizeTimeDisplay(timeStr) {
+        if (!timeStr) return '';
+        
+        const normalized = String(timeStr).trim();
+        const match = normalized.match(/(\d{1,2})(?:[:.](\d{1,2}))?\s*(AM|PM)?/i);
+        
+        if (!match) return normalized;
+        
+        let hour = parseInt(match[1], 10);
+        const minute = parseInt(match[2] || '0', 10);
+        const period = match[3] ? match[3].toLowerCase() : '';
+        
+        // 转换为24小时制
+        if (period === 'pm' && hour !== 12) {
+            hour += 12;
+        } else if (period === 'am' && hour === 12) {
+            hour = 0;
+        }
+        
+        // 格式化为 HH:MM
+        return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    }
+
     calculateDayTotalHours(schedules) {
         if (!Array.isArray(schedules)) {
             return 0;
@@ -817,6 +849,19 @@ class GanttChart {
                 // 如果没有选择特定老师，计算所有老师的工时
                 totalHours += scheduleHours * schedule.teachers.length;
             }
+        });
+
+        return totalHours;
+    }
+
+    calculateTeacherTotalHours(teacherSchedules) {
+        if (!Array.isArray(teacherSchedules)) {
+            return 0;
+        }
+
+        let totalHours = 0;
+        teacherSchedules.forEach(schedule => {
+            totalHours += this.calculateScheduleHours(schedule);
         });
 
         return totalHours;
