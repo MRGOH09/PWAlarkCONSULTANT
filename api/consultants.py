@@ -29,7 +29,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Cache-Control', 'public, max-age=300')  # 缓存 5 分钟
+            self.send_header('Cache-Control', 'no-store')
             self.end_headers()
             
             # 返回 JSON 数据
