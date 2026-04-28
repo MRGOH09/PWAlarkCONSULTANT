@@ -100,6 +100,38 @@
             color: white;
             border-color: #0f766e;
         }
+
+        .sync-status {
+            background: #ffffff;
+            border-bottom: 1px solid #d9e2ec;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            color: #64748b;
+            font-size: 0.86rem;
+        }
+
+        .sync-status strong {
+            color: #0f766e;
+        }
+
+        .refresh-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #0f766e;
+            padding: 0.4rem 0.85rem;
+            cursor: pointer;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         
         .gantt-container {
             background: white;
@@ -511,6 +543,12 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+
+            .sync-status {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 0.55rem;
+            }
             
             .filter-group {
                 justify-content: center;
@@ -581,6 +619,11 @@
             <span class="filter-label">老师:</span>
             <button class="filter-btn active" data-teacher="all">全部</button>
         </div>
+    </div>
+
+    <div class="sync-status">
+        <div id="sync-status-text">正在同步 Lark 数据...</div>
+        <button class="refresh-btn" id="refresh-btn" type="button">刷新</button>
     </div>
     
     <div id="content">

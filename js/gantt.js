@@ -3,6 +3,11 @@ class GanttChart {
     constructor() {
         this.consultants = [];
         this.editingRecordId = null;
+        this.autoRefreshMs = 15000;
+        this.refreshTimer = null;
+        this.isLoading = false;
+        this.lastDataSignature = '';
+        this.lastUpdatedAt = null;
         this.currentView = 'schedule';
         this.filters = {
             day: 'all',
@@ -22,6 +27,7 @@ class GanttChart {
     init() {
         this.setupEventListeners();
         this.loadData();
+        this.startAutoRefresh();
     }
 
     setupEventListeners() {
@@ -72,21 +78,101 @@ class GanttChart {
             }
         });
         document.getElementById('edit-form').addEventListener('submit', (e) => this.handleEditSubmit(e));
+        document.getElementById('refresh-btn').addEventListener('click', () => this.loadData({ forceRender: true }));
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.stopAutoRefresh();
+            } else {
+                this.loadData({ forceRender: false });
+                this.startAutoRefresh();
+            }
+        });
     }
 
-    async loadData() {
+    startAutoRefresh() {
+        this.stopAutoRefresh();
+        this.refreshTimer = setInterval(() => {
+            if (!this.editingRecordId && !document.hidden) {
+                this.loadData({ forceRender: false });
+            }
+        }, this.autoRefreshMs);
+    }
+
+    stopAutoRefresh() {
+        if (this.refreshTimer) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = null;
+        }
+    }
+
+    async loadData(options = {}) {
+        const { forceRender = false } = options;
+        if (this.isLoading) {
+            return;
+        }
+
+        this.isLoading = true;
+        this.updateSyncStatus('同步中...');
+
         try {
             const response = await fetch(`/api/consultants?t=${Date.now()}`, { cache: 'no-store' });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            this.consultants = await response.json();
+            const nextConsultants = await response.json();
+            const nextSignature = this.getDataSignature(nextConsultants);
+            const hasChanged = nextSignature !== this.lastDataSignature;
+
+            this.consultants = nextConsultants;
+            this.lastDataSignature = nextSignature;
+            this.lastUpdatedAt = new Date();
             this.updateTeacherFilter();
-            this.renderContent();
+
+            if (forceRender || hasChanged) {
+                this.renderContent();
+            }
+
+            this.updateSyncStatus();
         } catch (error) {
             console.error('加载数据失败:', error);
+            this.updateSyncStatus('同步失败');
             this.showError('加载数据失败，请稍后重试');
+        } finally {
+            this.isLoading = false;
         }
+    }
+
+    getDataSignature(data) {
+        return JSON.stringify(data.map(item => ({
+            recordId: item.recordId,
+            day: item.day,
+            teachers: item.teachers,
+            checkin: item.checkin,
+            checkout: item.checkout,
+            campus: item.campus
+        })));
+    }
+
+    updateSyncStatus(message = '') {
+        const statusText = document.getElementById('sync-status-text');
+        const refreshButton = document.getElementById('refresh-btn');
+        if (!statusText || !refreshButton) {
+            return;
+        }
+
+        refreshButton.disabled = this.isLoading;
+
+        if (message) {
+            statusText.innerHTML = `<strong>${message}</strong>`;
+            return;
+        }
+
+        if (!this.lastUpdatedAt) {
+            statusText.textContent = '尚未同步';
+            return;
+        }
+
+        statusText.innerHTML = `最后同步 <strong>${this.formatClockTime(this.lastUpdatedAt)}</strong>，每 15 秒自动刷新`;
     }
 
     updateTeacherFilter() {
@@ -361,6 +447,15 @@ class GanttChart {
         return `${hour12}:00 ${suffix}`;
     }
 
+    formatClockTime(date) {
+        return date.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    }
+
     getCampusClass(campus) {
         const normalized = String(campus || '').toLowerCase();
         if (normalized === 'pu' || normalized === 'hm' || normalized === 'subang') {
@@ -392,6 +487,7 @@ class GanttChart {
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
         document.getElementById('edit-checkin').focus();
+        this.updateSyncStatus('编辑中，已暂停自动刷新');
     }
 
     closeEditModal() {
@@ -399,6 +495,7 @@ class GanttChart {
         const modal = document.getElementById('edit-modal');
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
+        this.updateSyncStatus();
     }
 
     async handleEditSubmit(e) {
