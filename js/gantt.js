@@ -731,11 +731,21 @@ class GanttChart {
     }
 
     openCreateModal() {
-        const datalist = document.getElementById('teacher-options');
         const teachers = new Set();
-        this.consultants.forEach(c => c.teachers.forEach(t => teachers.add(t)));
-        datalist.innerHTML = Array.from(teachers).sort()
-            .map(t => `<option value="${this.escapeAttribute(t)}"></option>`).join('');
+        const checkins = new Set();
+        const checkouts = new Set();
+        this.consultants.forEach(c => {
+            c.teachers.forEach(t => teachers.add(t));
+            if (c.checkin) checkins.add(c.checkin);
+            if (c.checkout) checkouts.add(c.checkout);
+        });
+        const fillOptions = (id, values) => {
+            document.getElementById(id).innerHTML = Array.from(values).sort()
+                .map(v => `<option value="${this.escapeAttribute(v)}"></option>`).join('');
+        };
+        fillOptions('teacher-options', teachers);
+        fillOptions('checkin-options', checkins);
+        fillOptions('checkout-options', checkouts);
 
         document.getElementById('create-form').reset();
         document.getElementById('create-error').textContent = '';

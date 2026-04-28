@@ -5,7 +5,8 @@ import requests
 
 
 VALID_DAYS = {"星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"}
-VALID_CAMPUSES = {"PU", "HM", "SUBANG"}
+SELECT_FIELD_TYPE = 3
+SINGLE_SELECT_FIELDS_TO_ENSURE = ["老师", "校区", "进 (Check-in)", "出 (Check-out)"]
 
 
 class handler(BaseHTTPRequestHandler):
@@ -36,9 +37,6 @@ class handler(BaseHTTPRequestHandler):
             if not teacher:
                 self.send_json_response({"error": "请选择或输入老师"}, 400)
                 return
-            if campus not in VALID_CAMPUSES:
-                self.send_json_response({"error": "校区必须是 PU / HM / SUBANG"}, 400)
-                return
             if day not in VALID_DAYS:
                 self.send_json_response({"error": "星期格式不正确"}, 400)
                 return
@@ -51,9 +49,31 @@ class handler(BaseHTTPRequestHandler):
                 self.send_json_response({"error": "获取访问令牌失败"}, 500)
                 return
 
+            fields_schema = self.get_fields(tenant_token, base_token, table_id)
+            if not fields_schema:
+                self.send_json_response({"error": "无法获取字段 schema"}, 500)
+                return
+
+            target_values = {
+                "老师": teacher,
+                "校区": campus,
+                "进 (Check-in)": checkin,
+                "出 (Check-out)": checkout,
+            }
+            for field_name in SINGLE_SELECT_FIELDS_TO_ENSURE:
+                ok, err = self.ensure_select_value(
+                    tenant_token, base_token, table_id,
+                    fields_schema, field_name, target_values[field_name]
+                )
+                if not ok:
+                    self.send_json_response(
+                        {"error": f"{field_name} 添加选项失败: {err}"}, 400
+                    )
+                    return
+
             fields = {
                 "星期": day,
-                "老师": [teacher],
+                "老师": teacher,
                 "进 (Check-in)": checkin,
                 "出 (Check-out)": checkout,
                 "校区": campus,
@@ -95,6 +115,56 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"请求令牌时出错: {str(e)}")
         return None
+
+    def get_fields(self, tenant_token, base_token, table_id):
+        url = f"https://open.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/fields"
+        headers = {"Authorization": f"Bearer {tenant_token}"}
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+            response.raise_for_status()
+            return response.json().get("data", {}).get("items", [])
+        except Exception as e:
+            print(f"获取字段 schema 失败: {str(e)}")
+            return []
+
+    def ensure_select_value(self, tenant_token, base_token, table_id,
+                            fields_schema, field_name, value):
+        """单选字段：若 value 不在选项内则追加。返回 (ok, error)。"""
+        field = next((f for f in fields_schema if f.get("field_name") == field_name), None)
+        if not field:
+            return False, f"字段 {field_name} 不存在"
+        if field.get("type") != SELECT_FIELD_TYPE:
+            return True, None
+
+        options = (field.get("property") or {}).get("options") or []
+        existing_names = {opt.get("name") for opt in options}
+        if value in existing_names:
+            return True, None
+
+        new_options = [{"name": opt.get("name")} for opt in options]
+        new_options.append({"name": value})
+
+        url = (
+            f"https://open.larksuite.com/open-apis/bitable/v1/apps/"
+            f"{base_token}/tables/{table_id}/fields/{field.get('field_id')}"
+        )
+        headers = {
+            "Authorization": f"Bearer {tenant_token}",
+            "Content-Type": "application/json; charset=utf-8"
+        }
+        body = {
+            "field_name": field_name,
+            "type": SELECT_FIELD_TYPE,
+            "property": {"options": new_options}
+        }
+        try:
+            response = requests.put(url, headers=headers, json=body, timeout=15)
+            result = response.json()
+            if result.get("code") == 0:
+                return True, None
+            return False, result.get("msg", "未知错误")
+        except Exception as e:
+            return False, str(e)
 
     def create_record(self, tenant_token, base_token, table_id, fields):
         url = f"https://open.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/records"

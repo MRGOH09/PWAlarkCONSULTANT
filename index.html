@@ -940,11 +940,13 @@
                     </div>
                     <div class="edit-field">
                         <label for="create-checkin">进 (Check-in)</label>
-                        <input id="create-checkin" name="checkin" placeholder="例如 7.30 AM" autocomplete="off" required>
+                        <input id="create-checkin" name="checkin" list="checkin-options" placeholder="例如 7:30 AM" autocomplete="off" required>
+                        <datalist id="checkin-options"></datalist>
                     </div>
                     <div class="edit-field">
                         <label for="create-checkout">出 (Check-out)</label>
-                        <input id="create-checkout" name="checkout" placeholder="例如 11.00 AM" autocomplete="off" required>
+                        <input id="create-checkout" name="checkout" list="checkout-options" placeholder="例如 11:00 AM" autocomplete="off" required>
+                        <datalist id="checkout-options"></datalist>
                     </div>
                     <div class="edit-error" id="create-error"></div>
                 </div>
