@@ -1,33 +1,47 @@
 // Service Worker for PWA
-const CACHE_NAME = 'me-education-v1';
+const CACHE_NAME = 'me-education-v2';
 const urlsToCache = [
-    '/',
-    '/js/app.js',
+    '/js/gantt.js',
     '/manifest.json'
 ];
 
-// 安装事件
+// 安装事件：预缓存静态资源，立即跳过等待
 self.addEventListener('install', event => {
+    self.skipWaiting();
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Opened cache');
-                return cache.addAll(urlsToCache);
-            })
+        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
     );
 });
 
-// 获取事件
+// 激活事件：清理旧版本缓存，立即接管所有页面
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys => Promise.all(
+            keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+        )).then(() => self.clients.claim())
+    );
+});
+
+// 获取事件：HTML/导航请求走 network-first，其他走 cache-first
 self.addEventListener('fetch', event => {
+    const req = event.request;
+    if (req.method !== 'GET') return;
+
+    const isHTML = req.mode === 'navigate' ||
+                   (req.headers.get('accept') || '').includes('text/html');
+
+    if (isHTML) {
+        event.respondWith(
+            fetch(req).then(res => {
+                const copy = res.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+                return res;
+            }).catch(() => caches.match(req))
+        );
+        return;
+    }
+
     event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                // 如果缓存中有响应，返回缓存的版本
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request);
-            }
-        )
+        caches.match(req).then(cached => cached || fetch(req))
     );
 });
