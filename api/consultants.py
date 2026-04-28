@@ -98,11 +98,11 @@ class handler(BaseHTTPRequestHandler):
             
             try:
                 # 按字段名提取数据
-                day = fields.get("星期", "")
-                teachers = fields.get("老师", [])
-                checkin = fields.get("进 (Check-in)", "")
-                checkout = fields.get("出 (Check-out)", "")
-                campus = fields.get("校区", "")
+                day = self.extract_value(fields.get("星期", ""))
+                teachers = self.extract_teachers(fields.get("老师", []))
+                checkin = self.extract_value(fields.get("进 (Check-in)", ""))
+                checkout = self.extract_value(fields.get("出 (Check-out)", ""))
+                campus = self.extract_value(fields.get("校区", ""))
                 
                 print(f"提取的数据: day={day}, teachers={teachers}, checkin={checkin}, checkout={checkout}, campus={campus}")
                 

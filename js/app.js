@@ -45,7 +45,11 @@ class ConsultantViewer {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            this.consultants = await response.json();
+            const consultants = await response.json();
+            this.consultants = consultants.map(consultant => ({
+                ...consultant,
+                teachers: this.normalizeTeachers(consultant.teachers)
+            }));
             this.renderConsultants();
         } catch (error) {
             console.error('加载顾问数据失败:', error);
@@ -98,6 +102,18 @@ class ConsultantViewer {
                 </div>
             </div>
         `;
+    }
+
+    normalizeTeachers(teachers) {
+        if (Array.isArray(teachers)) {
+            return teachers.filter(Boolean).map(teacher => String(teacher).trim()).filter(Boolean);
+        }
+
+        if (typeof teachers === 'string') {
+            return teachers.split(',').map(teacher => teacher.trim()).filter(Boolean);
+        }
+
+        return [];
     }
 
     showError(message) {

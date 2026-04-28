@@ -120,10 +120,11 @@ class GanttChart {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const nextConsultants = await response.json();
-            const nextSignature = this.getDataSignature(nextConsultants);
+            const normalizedConsultants = this.normalizeConsultants(nextConsultants);
+            const nextSignature = this.getDataSignature(normalizedConsultants);
             const hasChanged = nextSignature !== this.lastDataSignature;
 
-            this.consultants = nextConsultants;
+            this.consultants = normalizedConsultants;
             this.lastDataSignature = nextSignature;
             this.lastUpdatedAt = new Date();
             this.updateTeacherFilter();
@@ -146,11 +147,34 @@ class GanttChart {
         return JSON.stringify(data.map(item => ({
             recordId: item.recordId,
             day: item.day,
-            teachers: item.teachers,
+            teachers: this.normalizeTeachers(item.teachers),
             checkin: item.checkin,
             checkout: item.checkout,
             campus: item.campus
         })));
+    }
+
+    normalizeConsultants(data) {
+        if (!Array.isArray(data)) {
+            return [];
+        }
+
+        return data.map(item => ({
+            ...item,
+            teachers: this.normalizeTeachers(item.teachers)
+        }));
+    }
+
+    normalizeTeachers(teachers) {
+        if (Array.isArray(teachers)) {
+            return teachers.filter(Boolean).map(teacher => String(teacher).trim()).filter(Boolean);
+        }
+
+        if (typeof teachers === 'string') {
+            return teachers.split(',').map(teacher => teacher.trim()).filter(Boolean);
+        }
+
+        return [];
     }
 
     updateSyncStatus(message = '') {
