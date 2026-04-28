@@ -102,6 +102,14 @@ class GanttChart {
         document.getElementById('edit-form').addEventListener('submit', (e) => this.handleEditSubmit(e));
         document.getElementById('refresh-btn').addEventListener('click', () => this.loadData({ forceRender: true }));
         document.getElementById('clear-filters').addEventListener('click', () => this.clearFilters());
+
+        document.getElementById('open-create').addEventListener('click', () => this.openCreateModal());
+        document.getElementById('create-close').addEventListener('click', () => this.closeCreateModal());
+        document.getElementById('create-cancel').addEventListener('click', () => this.closeCreateModal());
+        document.getElementById('create-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'create-modal') this.closeCreateModal();
+        });
+        document.getElementById('create-form').addEventListener('submit', (e) => this.handleCreateSubmit(e));
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this.stopAutoRefresh();
@@ -720,6 +728,88 @@ class GanttChart {
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
         this.updateSyncStatus();
+    }
+
+    openCreateModal() {
+        const datalist = document.getElementById('teacher-options');
+        const teachers = new Set();
+        this.consultants.forEach(c => c.teachers.forEach(t => teachers.add(t)));
+        datalist.innerHTML = Array.from(teachers).sort()
+            .map(t => `<option value="${this.escapeAttribute(t)}"></option>`).join('');
+
+        document.getElementById('create-form').reset();
+        document.getElementById('create-error').textContent = '';
+        const submit = document.getElementById('create-submit');
+        submit.disabled = false;
+        submit.textContent = '保存到 Lark';
+
+        const modal = document.getElementById('create-modal');
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.getElementById('create-teacher').focus();
+        this.updateSyncStatus('新增中，已暂停自动刷新');
+    }
+
+    closeCreateModal() {
+        const modal = document.getElementById('create-modal');
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        this.updateSyncStatus();
+    }
+
+    async handleCreateSubmit(e) {
+        e.preventDefault();
+
+        const teacher = document.getElementById('create-teacher').value.trim();
+        const campus = document.getElementById('create-campus').value;
+        const day = document.getElementById('create-day').value;
+        const week = document.getElementById('create-week').value;
+        const checkin = document.getElementById('create-checkin').value.trim();
+        const checkout = document.getElementById('create-checkout').value.trim();
+
+        if (!teacher) return this.showCreateError('请输入老师');
+        if (!checkin || !checkout) return this.showCreateError('进出时间不能为空');
+        if (this.parseTimeToHours(checkout) <= this.parseTimeToHours(checkin)) {
+            return this.showCreateError('出时间必须晚于进时间');
+        }
+
+        const submit = document.getElementById('create-submit');
+        submit.disabled = true;
+        submit.textContent = '保存中...';
+        this.showCreateError('');
+
+        try {
+            const response = await fetch('/api/create-consultant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teacher, campus, day, week, checkin, checkout })
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.ok) {
+                throw new Error(result.error || '创建失败');
+            }
+
+            this.closeCreateModal();
+            this.showToastSuccess('已新增到 Lark ✅');
+            await this.loadData();
+        } catch (error) {
+            this.showCreateError(error.message || '创建失败');
+            submit.disabled = false;
+            submit.textContent = '保存到 Lark';
+        }
+    }
+
+    showCreateError(message) {
+        document.getElementById('create-error').textContent = message;
+    }
+
+    showToastSuccess(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-success';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2200);
     }
 
     async handleEditSubmit(e) {

@@ -540,12 +540,42 @@
             font-size: 0.86rem;
         }
 
-        .edit-field input {
+        .edit-field input,
+        .edit-field select {
             width: 100%;
             padding: 0.65rem 0.75rem;
             border: 1px solid #cbd5e1;
             border-radius: 8px;
             font: inherit;
+            background: #ffffff;
+        }
+
+        .add-btn {
+            padding: 0.45rem 0.95rem;
+            border: none;
+            border-radius: 999px;
+            background: #00b96b;
+            color: #ffffff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .add-btn:hover {
+            background: #009957;
+        }
+
+        .toast-success {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #16a34a;
+            color: #ffffff;
+            padding: 0.65rem 1.1rem;
+            border-radius: 999px;
+            font-weight: 700;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+            z-index: 30;
         }
 
         .edit-error {
@@ -826,6 +856,7 @@
 
         <div class="filter-group">
             <button class="clear-filter-btn" id="clear-filters" type="button">清除筛选</button>
+            <button class="add-btn" id="open-create" type="button">➕ 新增工时</button>
             <span class="filter-scope" id="filter-scope">当前范围：<strong>全部</strong></span>
         </div>
     </div>
@@ -867,6 +898,64 @@
         </div>
     </div>
     
+    <div class="edit-modal" id="create-modal" aria-hidden="true">
+        <div class="edit-dialog" role="dialog" aria-modal="true" aria-labelledby="create-title">
+            <form id="create-form">
+                <div class="edit-header">
+                    <div class="edit-title" id="create-title">新增工作时间</div>
+                    <button class="edit-close" type="button" id="create-close" aria-label="关闭">×</button>
+                </div>
+                <div class="edit-body">
+                    <div class="edit-field">
+                        <label for="create-teacher">老师（可输入新名字）</label>
+                        <input id="create-teacher" name="teacher" list="teacher-options" placeholder="例如 JASON" autocomplete="off" required>
+                        <datalist id="teacher-options"></datalist>
+                    </div>
+                    <div class="edit-field">
+                        <label for="create-campus">校区</label>
+                        <select id="create-campus" name="campus" required>
+                            <option value="PU">PU</option>
+                            <option value="HM">HM</option>
+                            <option value="SUBANG">SUBANG</option>
+                        </select>
+                    </div>
+                    <div class="edit-field">
+                        <label for="create-day">星期</label>
+                        <select id="create-day" name="day" required>
+                            <option value="星期一">周一</option>
+                            <option value="星期二">周二</option>
+                            <option value="星期三">周三</option>
+                            <option value="星期四">周四</option>
+                            <option value="星期五">周五</option>
+                            <option value="星期六">周六</option>
+                            <option value="星期日">周日</option>
+                        </select>
+                    </div>
+                    <div class="edit-field">
+                        <label for="create-week">适用周</label>
+                        <select id="create-week" name="week" required>
+                            <option value="全部">全部</option>
+                            <option value="第1周">第1周</option>
+                        </select>
+                    </div>
+                    <div class="edit-field">
+                        <label for="create-checkin">进 (Check-in)</label>
+                        <input id="create-checkin" name="checkin" placeholder="例如 7.30 AM" autocomplete="off" required>
+                    </div>
+                    <div class="edit-field">
+                        <label for="create-checkout">出 (Check-out)</label>
+                        <input id="create-checkout" name="checkout" placeholder="例如 11.00 AM" autocomplete="off" required>
+                    </div>
+                    <div class="edit-error" id="create-error"></div>
+                </div>
+                <div class="edit-actions">
+                    <button class="edit-button" type="button" id="create-cancel">取消</button>
+                    <button class="edit-button primary" type="submit" id="create-submit">保存到 Lark</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="/js/gantt.js"></script>
 </body>
 </html>
