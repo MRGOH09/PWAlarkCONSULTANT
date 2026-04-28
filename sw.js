@@ -1,5 +1,5 @@
 // Service Worker for PWA
-const CACHE_NAME = 'me-education-v7';
+const CACHE_NAME = 'me-education-v8';
 const urlsToCache = [
     '/manifest.json'
 ];

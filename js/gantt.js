@@ -352,7 +352,7 @@ class GanttChart {
 
     renderTeacherView() {
         const filteredData = this.getFilteredData();
-        const conflictRecordIds = this.getConflictRecordIds(this.consultants);
+        const conflictRecordIds = this.getConflictRecordIds(filteredData);
         
         // 按老师分组
         const teacherSchedules = {};
@@ -420,7 +420,7 @@ class GanttChart {
 
     renderScheduleView() {
         const filteredData = this.getFilteredData();
-        const conflictRecordIds = this.getConflictRecordIds(this.consultants);
+        const conflictRecordIds = this.getConflictRecordIds(filteredData);
         
         if (filteredData.length === 0) {
             return '<div class="loading">没有找到符合条件的数据</div>';
