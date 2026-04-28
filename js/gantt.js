@@ -375,7 +375,8 @@ class GanttChart {
         `;
 
         Object.keys(teacherSchedules).sort().forEach(teacher => {
-            html += `<tr><td class="teacher-name">${teacher}</td>`;
+            const teacherWeeklyHours = this.calculateTeacherTotalHours(teacherSchedules[teacher]);
+            html += `<tr><td class="teacher-name">${teacher}<br><small style="color: #64748b; font-weight: normal;">周总工时: ${this.formatHours(teacherWeeklyHours)}</small></td>`;
             
             days.forEach(day => {
                 const daySchedules = teacherSchedules[teacher].filter(s => s.day === day);
@@ -446,14 +447,10 @@ class GanttChart {
         days.forEach(day => {
             const schedules = this.layoutDaySchedules(this.mergeScheduleSegments(schedulesByDay[day]));
             const laneCount = schedules.reduce((max, schedule) => Math.max(max, schedule.lane + 1), 1);
-            const dayTotalHours = this.calculateDayTotalHours(schedulesByDay[day]);
 
             html += `
                 <div class="timeline-row" style="--lanes: ${laneCount}">
-                    <div class="timeline-day">
-                        <div class="timeline-day-name">${day.replace('星期', '周')}</div>
-                        <div class="timeline-day-total">${this.formatHours(dayTotalHours)}</div>
-                    </div>
+                    <div class="timeline-day">${day.replace('星期', '周')}</div>
                     <div class="timeline-lane" style="--lanes: ${laneCount}">
             `;
 
