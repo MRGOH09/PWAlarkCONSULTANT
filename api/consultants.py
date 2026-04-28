@@ -109,6 +109,7 @@ class handler(BaseHTTPRequestHandler):
                 # 只处理有效数据
                 if day and teachers and checkin and checkout and campus:
                     consultant = {
+                        "recordId": item.get("record_id", ""),
                         "day": day,
                         "teachers": teachers,
                         "checkin": checkin,

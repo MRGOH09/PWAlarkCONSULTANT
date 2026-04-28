@@ -2,6 +2,7 @@
 class GanttChart {
     constructor() {
         this.consultants = [];
+        this.editingRecordId = null;
         this.currentView = 'schedule';
         this.filters = {
             day: 'all',
@@ -53,11 +54,29 @@ class GanttChart {
                 this.renderContent();
             });
         });
+
+        const content = document.getElementById('content');
+        content.addEventListener('click', (e) => {
+            const block = e.target.closest('[data-record-id]');
+            if (!block) {
+                return;
+            }
+            this.openEditModal(block.dataset.recordId);
+        });
+
+        document.getElementById('edit-close').addEventListener('click', () => this.closeEditModal());
+        document.getElementById('edit-cancel').addEventListener('click', () => this.closeEditModal());
+        document.getElementById('edit-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'edit-modal') {
+                this.closeEditModal();
+            }
+        });
+        document.getElementById('edit-form').addEventListener('submit', (e) => this.handleEditSubmit(e));
     }
 
     async loadData() {
         try {
-            const response = await fetch('/api/consultants');
+            const response = await fetch(`/api/consultants?t=${Date.now()}`, { cache: 'no-store' });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -188,6 +207,7 @@ class GanttChart {
                     const campusClass = schedule.campus.toLowerCase();
                     html += `
                         <div class="schedule-block ${campusClass}" 
+                             data-record-id="${this.escapeAttribute(schedule.recordId)}"
                              title="${schedule.campus}: ${schedule.checkin} - ${schedule.checkout}">
                             ${schedule.campus}<br>
                             ${schedule.checkin}-${schedule.checkout}
@@ -262,8 +282,9 @@ class GanttChart {
                 const teacherList = schedule.teachers.join(', ');
                 html += `
                     <div class="timeline-block ${campusClass}"
+                         data-record-id="${this.escapeAttribute(schedule.recordId)}"
                          style="--start: ${schedule.startOffset}; --duration: ${schedule.duration}; --lane: ${schedule.lane}"
-                         title="${schedule.campus}: ${teacherList} ${schedule.checkin} - ${schedule.checkout}">
+                         title="${this.escapeAttribute(`${schedule.campus}: ${teacherList} ${schedule.checkin} - ${schedule.checkout}，点击修改时间`)}">
                         <div class="timeline-campus">${schedule.campus}</div>
                         <div class="timeline-teachers">${teacherList}</div>
                         <div class="timeline-time">${schedule.checkin} - ${schedule.checkout}</div>
@@ -346,6 +367,119 @@ class GanttChart {
             return normalized;
         }
         return 'default-campus';
+    }
+
+    openEditModal(recordId) {
+        const schedule = this.consultants.find(item => item.recordId === recordId);
+        if (!schedule) {
+            this.showToastError('找不到这条排班记录');
+            return;
+        }
+
+        this.editingRecordId = recordId;
+        document.getElementById('edit-meta').innerHTML = `
+            <div><strong>星期:</strong> ${this.escapeHtml(schedule.day)}</div>
+            <div><strong>老师:</strong> ${this.escapeHtml(schedule.teachers.join(', '))}</div>
+            <div><strong>校区:</strong> ${this.escapeHtml(schedule.campus)}</div>
+        `;
+        document.getElementById('edit-checkin').value = schedule.checkin;
+        document.getElementById('edit-checkout').value = schedule.checkout;
+        document.getElementById('edit-error').textContent = '';
+        document.getElementById('edit-submit').disabled = false;
+        document.getElementById('edit-submit').textContent = '保存到 Lark';
+
+        const modal = document.getElementById('edit-modal');
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.getElementById('edit-checkin').focus();
+    }
+
+    closeEditModal() {
+        this.editingRecordId = null;
+        const modal = document.getElementById('edit-modal');
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    async handleEditSubmit(e) {
+        e.preventDefault();
+
+        const schedule = this.consultants.find(item => item.recordId === this.editingRecordId);
+        if (!schedule) {
+            this.showEditError('找不到这条排班记录');
+            return;
+        }
+
+        const checkin = document.getElementById('edit-checkin').value.trim();
+        const checkout = document.getElementById('edit-checkout').value.trim();
+
+        if (!checkin || !checkout) {
+            this.showEditError('进出时间不能为空');
+            return;
+        }
+
+        if (this.parseTimeToHours(checkout) <= this.parseTimeToHours(checkin)) {
+            this.showEditError('出时间必须晚于进时间');
+            return;
+        }
+
+        const submitButton = document.getElementById('edit-submit');
+        submitButton.disabled = true;
+        submitButton.textContent = '保存中...';
+        this.showEditError('');
+
+        try {
+            const response = await fetch('/api/update-consultant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    recordId: schedule.recordId,
+                    checkin,
+                    checkout
+                })
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.ok) {
+                throw new Error(result.error || '更新失败');
+            }
+
+            this.closeEditModal();
+            await this.loadData();
+        } catch (error) {
+            this.showEditError(error.message || '更新失败');
+            submitButton.disabled = false;
+            submitButton.textContent = '保存到 Lark';
+        }
+    }
+
+    showEditError(message) {
+        document.getElementById('edit-error').textContent = message;
+    }
+
+    showToastError(message) {
+        const content = document.getElementById('content');
+        const error = document.createElement('div');
+        error.className = 'loading';
+        error.style.color = '#dc2626';
+        error.textContent = message;
+        content.prepend(error);
+        setTimeout(() => error.remove(), 2500);
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    escapeAttribute(value) {
+        return this.escapeHtml(value);
     }
 
     renderSummaryView() {
