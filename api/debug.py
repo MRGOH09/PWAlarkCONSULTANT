@@ -27,6 +27,8 @@ class handler(BaseHTTPRequestHandler):
                 self.test_permission(app_id, app_secret, base_token, table_id)
             elif test_type == 'raw':
                 self.test_raw_data(app_id, app_secret, base_token, table_id)
+            elif test_type == 'fields':
+                self.test_fields(app_id, app_secret, base_token, table_id)
             else:
                 self.test_full(app_id, app_secret, base_token, table_id)
                 
@@ -103,6 +105,52 @@ class handler(BaseHTTPRequestHandler):
         
         self.send_json_response(result)
     
+    def test_fields(self, app_id, app_secret, base_token, table_id):
+        """获取字段 schema：字段名 / 类型 / 选项"""
+        if not all([app_id, app_secret, base_token, table_id]):
+            self.send_json_response({"error": "配置不完整"})
+            return
+
+        tenant_token = self.get_tenant_access_token(app_id, app_secret)
+        if not tenant_token:
+            self.send_json_response({"error": "无法获取访问令牌"})
+            return
+
+        url = f"https://open.larksuite.com/open-apis/bitable/v1/apps/{base_token}/tables/{table_id}/fields"
+        headers = {"Authorization": f"Bearer {tenant_token}"}
+
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+            result = response.json()
+        except Exception as e:
+            self.send_json_response({"error": str(e)})
+            return
+
+        # type 编号: 1=文本 2=数字 3=单选 4=多选 5=日期 11=人员 15=链接 17=附件 18=单向关联 21=双向关联 ...
+        type_map = {
+            1: "文本", 2: "数字", 3: "单选", 4: "多选", 5: "日期",
+            7: "复选框", 11: "人员", 13: "电话", 15: "超链接",
+            17: "附件", 18: "单向关联", 21: "双向关联", 22: "地理位置",
+            1001: "创建时间", 1002: "修改时间", 1003: "创建人", 1004: "修改人",
+            1005: "自动编号"
+        }
+
+        items = result.get("data", {}).get("items", []) if isinstance(result, dict) else []
+        simplified = []
+        for f in items:
+            options = []
+            prop = f.get("property") or {}
+            for opt in (prop.get("options") or []):
+                options.append(opt.get("name"))
+            simplified.append({
+                "field_name": f.get("field_name"),
+                "type_code": f.get("type"),
+                "type_name": type_map.get(f.get("type"), f"未知({f.get('type')})"),
+                "options": options
+            })
+
+        self.send_json_response({"fields": simplified, "raw": result})
+
     def test_full(self, app_id, app_secret, base_token, table_id):
         """完整测试"""
         debug_info = {
